@@ -1,0 +1,17 @@
+# Python
+*.pyc
+__pycache__/
+*.egg-info/
+.pytest_cache/
+
+# Environments
+.venv
+venv/
+env/
+.env
+
+# Docker/Git
+Dockerfile
+docker-compose.yml
+.git
+.gitignore
