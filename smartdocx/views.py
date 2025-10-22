@@ -52,7 +52,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 key = 'access_token',
                 value = access_token,
                 httponly = True,
-                secure = False,
+                secure = True,
                 samesite = 'None',
                 path = '/',
                 max_age=cookie_age,  # ← cookie expiry time
@@ -62,7 +62,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 key = 'refresh_token',
                 value = refresh_token,
                 httponly = True,
-                secure = False,
+                secure = True,
                 samesite = 'None',
                 path = '/',
                 max_age=cookie_age * 4,  # refresh token can last longer (e.g., 28 days)
@@ -214,7 +214,7 @@ class CustomRefreshTokenView(TokenRefreshView):
                 key='access_token',
                 value=access_token,
                 httponly=True,
-                secure=False,
+                secure=True,
                 samesite='Lax',
                 path='/'
             )
