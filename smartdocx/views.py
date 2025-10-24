@@ -7,9 +7,9 @@ from rest_framework.decorators import api_view, permission_classes, authenticati
 import time
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
-from .models import Note, CustomUser, UploadFiles, Profile
-from .serializer import NoteSerializer, UserRegisterSerializer, UserSerializer, UploadFilesSerializer
-from .models import UploadFiles
+# from .models import Note, CustomUser, UploadFiles, Profile
+from .serializer import  UserRegisterSerializer
+# from .models import UploadFiles
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
@@ -267,13 +267,13 @@ def register(request):
         })
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_notes(request):
-    user = request.user
-    notes = Note.objects.filter(owner=user)
-    serializer = NoteSerializer(notes, many=True)
-    return Response(serializer.data)
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def get_notes(request):
+#     user = request.user
+#     notes = Note.objects.filter(owner=user)
+#     serializer = NoteSerializer(notes, many=True)
+#     return Response(serializer.data)
 
 import razorpay
 import json

@@ -25,7 +25,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 
-from .views import get_notes, CustomTokenObtainPairView, CustomRefreshTokenView, logout, is_logged_in, register
+from .views import  CustomTokenObtainPairView, CustomRefreshTokenView, logout, is_logged_in, register
 from django.conf.urls.static import static
 from django.conf import settings
 from django.urls import path, include
@@ -40,7 +40,7 @@ urlpatterns = [
     # path('', home, name='home'),
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', CustomRefreshTokenView.as_view(), name='token_refresh'),
-    path('notes/', get_notes, name='get_notes'),
+    # path('notes/', get_notes, name='get_notes'),
     path('logout/', logout, name='logout'),
     path('auth/', is_logged_in, name='is_authenticated'),
     path('register/', register, name='register'),

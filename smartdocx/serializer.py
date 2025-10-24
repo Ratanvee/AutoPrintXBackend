@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate, login
-from .models import Note, CustomUser
+from .models import CustomUser
 from django.contrib.auth.models import User
 from .models import UploadFiles
 # class UserRegisterSerializer(serializers.ModelSerializer):
@@ -111,10 +111,10 @@ class UserSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ['username']
 
-class NoteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Note
-        fields = ['id', 'description']
+# class NoteSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Note
+#         fields = ['id', 'description']
 
 
     

@@ -42,42 +42,42 @@ class CustomUser(AbstractUser):
 
 
 
-class Note(models.Model):
-    owner = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='notes')
-    description = models.TextField(max_length=300)
+# class Note(models.Model):
+#     owner = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='notes')
+#     description = models.TextField(max_length=300)
 
-# class UploadFiles(models.Model):
-#     FileUpload = models.FileField(upload_to='uploads/', blank=True, null=True)
-#     PaperSize = models.CharField(max_length=20, default='A4')
-#     PaperType = models.CharField(max_length=20, default='Portrait')
-#     PrintColor = models.CharField(max_length=20, default='Color')
-#     PrintSide = models.CharField(max_length=20, default='One-sided')
-#     Binding = models.CharField(max_length=20, default='None')
-#     NumberOfCopies = models.IntegerField(default=1)
-#     PaymentStatus = models.BooleanField(default=False)
-#     Owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='uploads')
-#     Updated_at = models.DateTimeField(auto_now=True)
-#     Transaction_id = models.CharField(max_length=100, blank=True, null=True)
-#     NoOfPages = models.IntegerField(default=0)
+# # class UploadFiles(models.Model):
+# #     FileUpload = models.FileField(upload_to='uploads/', blank=True, null=True)
+# #     PaperSize = models.CharField(max_length=20, default='A4')
+# #     PaperType = models.CharField(max_length=20, default='Portrait')
+# #     PrintColor = models.CharField(max_length=20, default='Color')
+# #     PrintSide = models.CharField(max_length=20, default='One-sided')
+# #     Binding = models.CharField(max_length=20, default='None')
+# #     NumberOfCopies = models.IntegerField(default=1)
+# #     PaymentStatus = models.BooleanField(default=False)
+# #     Owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='uploads')
+# #     Updated_at = models.DateTimeField(auto_now=True)
+# #     Transaction_id = models.CharField(max_length=100, blank=True, null=True)
+# #     NoOfPages = models.IntegerField(default=0)
+
+# #     def __str__(self):
+# #         return f"Order {self.id} - {self.Owner}"
+
+
+# # models.py
+import uuid
+# # from django.contrib.auth.models import User
+
+# class Profile(models.Model):
+#     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='profile')
+#     unique_id = models.CharField(max_length=100, unique=True, default=uuid.uuid4)
 
 #     def __str__(self):
-#         return f"Order {self.id} - {self.Owner}"
+#         return f"{self.user.username} - {self.unique_id}"
 
 
-# models.py
-import uuid
-# from django.contrib.auth.models import User
-
-class Profile(models.Model):
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='profile')
-    unique_id = models.CharField(max_length=100, unique=True, default=uuid.uuid4)
-
-    def __str__(self):
-        return f"{self.user.username} - {self.unique_id}"
-
-
-def upload_to_path():
-    return f'upload/'
+# def upload_to_path():
+#     return f'upload/'
 
 from django.utils import timezone
 class UploadFiles(models.Model):
@@ -113,11 +113,11 @@ class UploadFiles(models.Model):
 
 
 
-# Payment gateway models
-class PaymentGateway(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    api_key = models.CharField(max_length=255)
-    is_active = models.BooleanField(default=True)
+# # Payment gateway models
+# class PaymentGateway(models.Model):
+#     name = models.CharField(max_length=100, unique=True)
+#     api_key = models.CharField(max_length=255)
+#     is_active = models.BooleanField(default=True)
 
-    def __str__(self):
-        return self.name
+#     def __str__(self):
+#         return self.name

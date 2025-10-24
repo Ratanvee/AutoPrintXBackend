@@ -32,13 +32,14 @@ AUTH_USER_MODEL = 'smartdocx.CustomUser'
 SECRET_KEY = env("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['*']  # Allow all hosts for development
 
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -52,10 +53,7 @@ INSTALLED_APPS = [
     'ownerside',
     'customerside',
     'django_extensions',
-    'cloudinary',
-    'cloudinary_storage',
     'imagekit',
-    "daphne",
 ]
 
 
@@ -169,12 +167,23 @@ WSGI_APPLICATION = 'app.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'djongo',
+        'NAME': 'APXDB',
+        'CLIENT': {
+            'host': 'mongodb+srv://ratanveer420_db_user:rrREs8gSXDNGndye@cluster0.msrajed.mongodb.net/APXDB?retryWrites=true&w=majority',
+            'tls': True
+        }
     }
-}
+}  
 
 
 # Password validation
