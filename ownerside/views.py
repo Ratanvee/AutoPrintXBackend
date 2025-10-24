@@ -1045,7 +1045,8 @@ class OrdersChartData(APIView):
                             'orders': 0
                         }
                     
-                    month_data[month_key]['revenue'] += (record.PaymentAmount or 0)
+                    # month_data[month_key]['revenue'] += (record.PaymentAmount or 0)
+                    month_data[month_key]['revenue'] += convert_decimal128(record.PaymentAmount)
                     month_data[month_key]['orders'] += 1
             
             # Sort by month and prepare data
