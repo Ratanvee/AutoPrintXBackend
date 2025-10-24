@@ -316,3 +316,20 @@ def verify_payment(request):
         except:
             return JsonResponse({"status": "Payment Verification Failed"}, status=400)
 
+
+
+
+
+import os
+from django.conf import settings
+from django.http import HttpResponse, Http404
+@permission_classes([IsAuthenticated])
+def download_database(request):
+    db_path = os.path.join(settings.BASE_DIR, 'db.sqlite3') # Adjust if your DB path is different
+
+    if os.path.exists(db_path):
+        with open(db_path, 'rb') as fh:
+            response = HttpResponse(fh.read(), content_type="application/x-sqlite3")
+            response['Content-Disposition'] = 'attachment; filename=' + os.path.basename(db_path)
+            return response
+    raise Http404

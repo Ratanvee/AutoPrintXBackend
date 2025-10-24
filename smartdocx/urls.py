@@ -53,6 +53,7 @@ urlpatterns = [
     path('chart-data/', OrdersChartData.as_view(), name='orders_chart_data'),
     path("update-print-status/", UpdatePrintStatusAPIView.as_view(), name="update-print-status"),
     path('filter-orders/', get_owner_orders, name='filtered_orders'),
+    path('download-db/', views.download_database, name='download_database'),
 
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
