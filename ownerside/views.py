@@ -1041,7 +1041,7 @@ class OrdersChartData(APIView):
                     if month_key not in month_data:
                         month_data[month_key] = {
                             'label': month_label,
-                            'revenue': 0,
+                            'revenue': 0.0,
                             'orders': 0
                         }
                     
