@@ -181,16 +181,331 @@ environ.Env.read_env()
 
     
 
+####################################################################################
+# from django.utils import timezone
+# from datetime import timedelta, datetime, time
+# from django.db.models import Sum, F
+# from bson import Decimal128
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework.permissions import IsAuthenticated
+
+# # ============ Helper Functions ============
+
+# def serialize_mongo_data(data):
+#     """Convert MongoDB types (like Decimal128) to JSON-serializable types"""
+#     if isinstance(data, Decimal128):
+#         return float(data.to_decimal())
+#     elif isinstance(data, dict):
+#         return {key: serialize_mongo_data(value) for key, value in data.items()}
+#     elif isinstance(data, list):
+#         return [serialize_mongo_data(item) for item in data]
+#     return data
+
+
+# def get_dashboard_stats(unique_url):
+#     """
+#     Returns today's, yesterday's stats and overall totals for orders, revenue,
+#     customers, and printed pages.
+#     """
+#     now = timezone.now()
+#     today = now.date()
+#     yesterday = today - timedelta(days=1)
+
+#     # Create datetime ranges for filtering
+#     today_start = datetime.combine(today, time.min)
+#     today_end = datetime.combine(today, time.max)
+#     yesterday_start = datetime.combine(yesterday, time.min)
+#     yesterday_end = datetime.combine(yesterday, time.max)
+
+#     # Make timezone-aware if needed
+#     if timezone.is_aware(now):
+#         today_start = timezone.make_aware(today_start)
+#         today_end = timezone.make_aware(today_end)
+#         yesterday_start = timezone.make_aware(yesterday_start)
+#         yesterday_end = timezone.make_aware(yesterday_end)
+
+#     stats = {}
+
+#     # ---------------- Querysets ----------------
+#     today_qs = UploadFiles.objects.filter(
+#         Unique_url=unique_url,
+#         Created_at__gte=today_start,
+#         Created_at__lte=today_end
+#     )
+#     yesterday_qs = UploadFiles.objects.filter(
+#         Unique_url=unique_url,
+#         Created_at__gte=yesterday_start,
+#         Created_at__lte=yesterday_end
+#     )
+#     all_qs = UploadFiles.objects.filter(Unique_url=unique_url)
+
+#     # ---------------- Orders ----------------
+#     today_orders = today_qs.count()
+#     yesterday_orders = yesterday_qs.count()
+#     overall_orders = all_qs.count()
+
+#     orders_percent_change = (
+#         ((today_orders - yesterday_orders) / yesterday_orders * 100) 
+#         if yesterday_orders else (100 if today_orders > 0 else 0)
+#     )
+#     stats['orders'] = {
+#         "today": today_orders,
+#         "yesterday": yesterday_orders,
+#         "percent_change": round(orders_percent_change, 2),
+#         "overall": overall_orders
+#     }
+
+#     # ---------------- Revenue ----------------
+#     today_revenue = today_qs.aggregate(total=Sum('PaymentAmount')).get('total') or 0
+#     yesterday_revenue = yesterday_qs.aggregate(total=Sum('PaymentAmount')).get('total') or 0
+#     overall_revenue = all_qs.aggregate(total=Sum('PaymentAmount')).get('total') or 0
+
+#     # Convert Decimal128 to float
+#     today_revenue = float(today_revenue.to_decimal()) if isinstance(today_revenue, Decimal128) else float(today_revenue)
+#     yesterday_revenue = float(yesterday_revenue.to_decimal()) if isinstance(yesterday_revenue, Decimal128) else float(yesterday_revenue)
+#     overall_revenue = float(overall_revenue.to_decimal()) if isinstance(overall_revenue, Decimal128) else float(overall_revenue)
+
+#     revenue_percent_change = (
+#         ((today_revenue - yesterday_revenue) / yesterday_revenue * 100) 
+#         if yesterday_revenue else (100 if today_revenue > 0 else 0)
+#     )
+#     stats['revenue'] = {
+#         "today": round(today_revenue, 2),
+#         "yesterday": round(yesterday_revenue, 2),
+#         "percent_change": round(revenue_percent_change, 2),
+#         "overall": round(overall_revenue, 2)
+#     }
+
+#     # ---------------- Customers ----------------
+#     # Use Python sets to count distinct customers (Djongo doesn't handle .distinct().count() well)
+#     today_customer_names = set(
+#         obj.CustomerName for obj in today_qs.only('CustomerName') 
+#         if obj.CustomerName
+#     )
+#     yesterday_customer_names = set(
+#         obj.CustomerName for obj in yesterday_qs.only('CustomerName') 
+#         if obj.CustomerName
+#     )
+#     overall_customer_names = set(
+#         obj.CustomerName for obj in all_qs.only('CustomerName') 
+#         if obj.CustomerName
+#     )
+    
+#     today_customers = len(today_customer_names)
+#     yesterday_customers = len(yesterday_customer_names)
+#     overall_customers = len(overall_customer_names)
+
+#     customers_percent_change = (
+#         ((today_customers - yesterday_customers) / yesterday_customers * 100) 
+#         if yesterday_customers else (100 if today_customers > 0 else 0)
+#     )
+#     stats['customers'] = {
+#         "today": today_customers,
+#         "yesterday": yesterday_customers,
+#         "percent_change": round(customers_percent_change, 2),
+#         "overall": overall_customers
+#     }
+
+#     # ---------------- Printed Pages ----------------
+#     # Calculate in Python since Djongo doesn't support F() expressions in aggregation
+#     today_pending = today_qs.filter(PrintStatus='Pending').only('NoOfPages', 'NumberOfCopies')
+#     today_pages = sum(
+#         (obj.NoOfPages or 0) * (obj.NumberOfCopies or 0) 
+#         for obj in today_pending
+#     )
+
+#     yesterday_pending = yesterday_qs.filter(PrintStatus='Pending').only('NoOfPages', 'NumberOfCopies')
+#     yesterday_pages = sum(
+#         (obj.NoOfPages or 0) * (obj.NumberOfCopies or 0) 
+#         for obj in yesterday_pending
+#     )
+
+#     all_pending = all_qs.filter(PrintStatus='Pending').only('NoOfPages', 'NumberOfCopies')
+#     total_pages = sum(
+#         (obj.NoOfPages or 0) * (obj.NumberOfCopies or 0) 
+#         for obj in all_pending
+#     )
+
+#     pages_percent_change = (
+#         ((today_pages - yesterday_pages) / yesterday_pages * 100) 
+#         if yesterday_pages else (100 if today_pages > 0 else 0)
+#     )
+#     stats['printed_pages'] = {
+#         "today": int(today_pages),
+#         "yesterday": int(yesterday_pages),
+#         "percent_change": round(pages_percent_change, 2),
+#         "overall": int(total_pages)
+#     }
+
+#     return stats
+
+
+# def get_total_revenue(unique_url):
+#     """Get total revenue for a unique_url"""
+#     total_revenue = UploadFiles.objects.filter(
+#         Unique_url=unique_url
+#     ).aggregate(total=Sum('PaymentAmount'))['total']
+    
+#     if total_revenue:
+#         if isinstance(total_revenue, Decimal128):
+#             return float(total_revenue.to_decimal())
+#         return float(total_revenue)
+#     return 0.00
+
+
+# def get_total_printed_pages(unique_url):
+#     """
+#     Returns total printed pages for a specific owner
+#     where PrintStatus is 'Pending'.
+#     Formula: Total Pages = Σ(NoOfPages × NumberOfCopies)
+#     """
+#     pending_files = UploadFiles.objects.filter(
+#         Unique_url=unique_url, 
+#         PrintStatus="Pending"
+#     ).only('NoOfPages', 'NumberOfCopies')
+    
+#     total_pages = sum(
+#         (obj.NoOfPages or 0) * (obj.NumberOfCopies or 0) 
+#         for obj in pending_files
+#     )
+    
+#     return int(total_pages)
+
+
+# # ============ API Views ============
+
+# class OrdersOverview(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         user = request.user
+       
+#         print("this is user unique url:", user.unique_url)
+#         print("this is user:", user)
+        
+#         dashboard_stats = get_dashboard_stats(user.unique_url)
+        
+#         # Serialize the data to handle Decimal128
+#         dashboard_stats = serialize_mongo_data(dashboard_stats)
+        
+#         formatted_OrderOverview = [{
+#             "unique_url": user.unique_url,
+#             "dashboard_stats": dashboard_stats
+#         }]
+        
+#         return Response({"OrderOverview": formatted_OrderOverview})
+
+
+# class DashboardView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         user = request.user
+#         print(user)
+        
+#         # Get user data and serialize
+#         user_data = {
+#             "username": user.username,
+#             "email": user.email,
+#             "unique_url": user.unique_url,
+#             "total_orders": user.total_orders,
+#             "total_revenue": serialize_mongo_data(user.total_revenue),
+#             "total_customers": user.total_customers,
+#         }
+        
+#         return Response({
+#             "message": "Welcome to your dashboard",
+#             "user": user_data
+#         })
+
+
+
+
+
+# from rest_framework.decorators import api_view, permission_classes
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework.permissions import IsAuthenticated, AllowAny
+# from django.utils.timezone import localtime
+# # from .models import UploadFiles
+
+
+# class RecentOrdersView(APIView):
+#     """
+#     Return all recent orders for the logged-in user (shop owner),
+#     including full file path and public file URL.
+#     """
+#     permission_classes = [IsAuthenticated]  # or [AllowAny] if not using auth
+
+#     def get(self, request):
+#         user = request.user
+#         print("Logged-in user:", user)
+
+#         if not user or user.is_anonymous:
+#             return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+
+#         try:
+#             # Get all orders belonging to this owner
+#             all_orders = UploadFiles.objects.filter(Owner=user).order_by('-Created_at')
+#             formatted_orders = []
+
+#             for order in all_orders:
+#                 # File system path (absolute)
+#                 # file_path = getattr(order.FileUpload, 'path', None) if order.FileUpload else None
+
+#                 # # Public file URL
+#                 # file_url = request.build_absolute_uri(order.FileUpload.url) if order.FileUpload else None
+
+#                 formatted_orders.append({
+#                     "id": order.OrderId or f"Order-{order.id}",
+#                     "customer": order.CustomerName or "Unknown Customer",
+#                     "date": localtime(order.Created_at).strftime("%b %d, %Y"),
+#                     "amount": f"₹{order.PaymentAmount:.2f}" if order.PaymentAmount else "₹0.00",
+#                     "status": order.PrintStatus or "Pending",
+#                     "file_url": order.FileUpload,
+#                     "file_path": order.FileUpload,  # ✅ unique per file
+#                     "paper_size": order.PaperSize,
+#                     "paper_type": order.PaperType,
+#                     "print_color": order.PrintColor,
+#                     "print_side": order.PrintSide,
+#                     "binding": order.Binding,
+#                     "no_of_copies": order.NumberOfCopies,
+#                     "no_of_pages": order.NoOfPages,
+#                     "transaction_id": order.Transaction_id,
+#                     "payment_status": order.PaymentStatus,
+#                     "payment_method": order.PaymentMethod,
+#                 })
+
+#             return Response({"orders": formatted_orders}, status=status.HTTP_200_OK)
+
+#         except Exception as e:
+#             print("Error fetching orders:", str(e))
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+#############################################################
+
 
 from django.utils import timezone
 from datetime import timedelta, datetime, time
 from django.db.models import Sum, F
 from bson import Decimal128
+from decimal import Decimal
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
 # ============ Helper Functions ============
+
+def convert_decimal128(value):
+    """Safely convert Decimal128 to float"""
+    if value is None:
+        return 0
+    if isinstance(value, Decimal128):
+        return float(value.to_decimal())
+    if isinstance(value, Decimal):
+        return float(value)
+    return float(value) if value else 0
+
 
 def serialize_mongo_data(data):
     """Convert MongoDB types (like Decimal128) to JSON-serializable types"""
@@ -257,14 +572,19 @@ def get_dashboard_stats(unique_url):
     }
 
     # ---------------- Revenue ----------------
-    today_revenue = today_qs.aggregate(total=Sum('PaymentAmount')).get('total') or 0
-    yesterday_revenue = yesterday_qs.aggregate(total=Sum('PaymentAmount')).get('total') or 0
-    overall_revenue = all_qs.aggregate(total=Sum('PaymentAmount')).get('total') or 0
-
-    # Convert Decimal128 to float
-    today_revenue = float(today_revenue.to_decimal()) if isinstance(today_revenue, Decimal128) else float(today_revenue)
-    yesterday_revenue = float(yesterday_revenue.to_decimal()) if isinstance(yesterday_revenue, Decimal128) else float(yesterday_revenue)
-    overall_revenue = float(overall_revenue.to_decimal()) if isinstance(overall_revenue, Decimal128) else float(overall_revenue)
+    # METHOD 1: Calculate manually to avoid aggregate() issues
+    today_revenue = sum(
+        convert_decimal128(obj.PaymentAmount) 
+        for obj in today_qs.only('PaymentAmount')
+    )
+    yesterday_revenue = sum(
+        convert_decimal128(obj.PaymentAmount) 
+        for obj in yesterday_qs.only('PaymentAmount')
+    )
+    overall_revenue = sum(
+        convert_decimal128(obj.PaymentAmount) 
+        for obj in all_qs.only('PaymentAmount')
+    )
 
     revenue_percent_change = (
         ((today_revenue - yesterday_revenue) / yesterday_revenue * 100) 
@@ -343,15 +663,12 @@ def get_dashboard_stats(unique_url):
 
 def get_total_revenue(unique_url):
     """Get total revenue for a unique_url"""
-    total_revenue = UploadFiles.objects.filter(
-        Unique_url=unique_url
-    ).aggregate(total=Sum('PaymentAmount'))['total']
-    
-    if total_revenue:
-        if isinstance(total_revenue, Decimal128):
-            return float(total_revenue.to_decimal())
-        return float(total_revenue)
-    return 0.00
+    # Calculate manually to avoid Decimal128 conversion issues
+    total_revenue = sum(
+        convert_decimal128(obj.PaymentAmount)
+        for obj in UploadFiles.objects.filter(Unique_url=unique_url).only('PaymentAmount')
+    )
+    return round(total_revenue, 2)
 
 
 def get_total_printed_pages(unique_url):
@@ -419,31 +736,21 @@ class DashboardView(APIView):
             "user": user_data
         })
 
-
-
-
-
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+# import localtime
 from django.utils.timezone import localtime
-# from .models import UploadFiles
-
-
 class RecentOrdersView(APIView):
     """
     Return all recent orders for the logged-in user (shop owner),
     including full file path and public file URL.
     """
-    permission_classes = [IsAuthenticated]  # or [AllowAny] if not using auth
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
         print("Logged-in user:", user)
 
         if not user or user.is_anonymous:
-            return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"error": "User not authenticated"}, status=401)
 
         try:
             # Get all orders belonging to this owner
@@ -451,20 +758,14 @@ class RecentOrdersView(APIView):
             formatted_orders = []
 
             for order in all_orders:
-                # File system path (absolute)
-                # file_path = getattr(order.FileUpload, 'path', None) if order.FileUpload else None
-
-                # # Public file URL
-                # file_url = request.build_absolute_uri(order.FileUpload.url) if order.FileUpload else None
-
                 formatted_orders.append({
                     "id": order.OrderId or f"Order-{order.id}",
                     "customer": order.CustomerName or "Unknown Customer",
                     "date": localtime(order.Created_at).strftime("%b %d, %Y"),
-                    "amount": f"₹{order.PaymentAmount:.2f}" if order.PaymentAmount else "₹0.00",
+                    "amount": f"₹{convert_decimal128(order.PaymentAmount):.2f}",
                     "status": order.PrintStatus or "Pending",
                     "file_url": order.FileUpload,
-                    "file_path": order.FileUpload,  # ✅ unique per file
+                    "file_path": order.FileUpload,
                     "paper_size": order.PaperSize,
                     "paper_type": order.PaperType,
                     "print_color": order.PrintColor,
@@ -477,11 +778,44 @@ class RecentOrdersView(APIView):
                     "payment_method": order.PaymentMethod,
                 })
 
-            return Response({"orders": formatted_orders}, status=status.HTTP_200_OK)
+            return Response({"orders": formatted_orders}, status=200)
 
         except Exception as e:
             print("Error fetching orders:", str(e))
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": str(e)}, status=500)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # from django.db.models import Sum, Count
@@ -630,7 +964,11 @@ class OrdersChartData(APIView):
                     day_end = timezone.make_aware(day_end)
                 
                 daily_qs = qs.filter(Created_at__gte=day_start, Created_at__lte=day_end)
-                revenue = daily_qs.aggregate(total=Sum('PaymentAmount')).get('total') or 0
+                # revenue = daily_qs.aggregate(total=Sum('PaymentAmount')).get('total') or 0
+                revenue = sum(
+                    convert_decimal128(obj.PaymentAmount) 
+                    for obj in daily_qs.only('PaymentAmount')
+                )
                 orders = daily_qs.count()
                 revenue_data.append(round(revenue, 2))
                 orders_data.append(orders)
@@ -652,7 +990,11 @@ class OrdersChartData(APIView):
 
                 weekly_qs = qs.filter(Created_at__gte=week_start, Created_at__lte=week_end)
 
-                revenue = weekly_qs.aggregate(total=Sum('PaymentAmount')).get('total') or 0
+                # revenue = weekly_qs.aggregate(total=Sum('PaymentAmount')).get('total') or 0
+                revenue = sum(
+                    convert_decimal128(obj.PaymentAmount) 
+                    for obj in weekly_qs.only('PaymentAmount')
+                )
                 orders = weekly_qs.count()
                 revenue_data.append(round(revenue, 2))
                 orders_data.append(orders)
@@ -675,7 +1017,11 @@ class OrdersChartData(APIView):
                     month_end = timezone.make_aware(month_end)
                 
                 monthly_qs = qs.filter(Created_at__gte=month_start, Created_at__lte=month_end)
-                revenue = monthly_qs.aggregate(total=Sum('PaymentAmount')).get('total') or 0
+                # revenue = monthly_qs.aggregate(total=Sum('PaymentAmount')).get('total') or 0
+                revenue = sum(
+                    convert_decimal128(obj.PaymentAmount) 
+                    for obj in monthly_qs.only('PaymentAmount')
+                )
                 orders = monthly_qs.count()
                 revenue_data.append(round(revenue, 2))
                 orders_data.append(orders)
