@@ -1,9 +1,10 @@
-# Stage 1: Builder
-FROM python:3.11-slim as builder
+# Use Python 3.11 slim image (Debian-based)
+FROM python:3.11-slim
 
+# Set the working directory
 WORKDIR /app
 
-# Install build dependencies
+# Install system dependencies required for building Python packages
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
@@ -13,42 +14,31 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install
+# Upgrade pip
+RUN pip install --upgrade pip
+
+# Copy requirements file
 COPY requirements.txt /app/
-RUN pip install --upgrade pip && \
-    pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
 
-# Stage 2: Runtime
-FROM python:3.11-slim
+# Install Python dependencies
+# Use --no-binary for problematic packages to avoid pre-built wheels issues
+RUN pip install --no-cache-dir -r requirements.txt
 
-WORKDIR /app
-
-# Install runtime dependencies only (much smaller)
-RUN apt-get update && apt-get install -y \
-    libssl3 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy wheels from builder
-COPY --from=builder /app/wheels /wheels
-COPY --from=builder /app/requirements.txt .
-
-# Install from wheels (faster, no compilation needed)
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir /wheels/*
-
-# Copy application code
+# Copy the Django project code
 COPY . /app/
 
-# Create non-root user for security
-RUN useradd -m -u 1000 django && \
-    chown -R django:django /app
-USER django
+# Collect static files
+RUN python manage.py collectstatic --noinput || echo "Collectstatic failed, continuing..."
 
-# Expose port
+# Expose port 8000
 EXPOSE 8000
 
-# Environment variable
+# Set environment variable for Django ASGI module
 ENV DJANGO_ASGI_MODULE=app.asgi:application
 
-# Run Daphne
+# Health check (optional but recommended)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8000')" || exit 1
+
+# Run Daphne server
 CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "app.asgi:application"]
