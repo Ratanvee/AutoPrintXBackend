@@ -1,30 +1,54 @@
-# Fix 1: Use a currently supported Debian version (Bullseye or Bookworm)
-# 'python:3.11-slim' is preferred as it automatically tracks stable distributions.
-FROM python:3.11-slim
+# Stage 1: Builder
+FROM python:3.11-slim as builder
 
-# Set the working directory in the container
 WORKDIR /app
 
-# Install system dependencies (if needed, e.g., for psycopg2)
-# RUN apt-get update && apt-get install -y \
-#    libpq-dev \
-#    gcc \
-#    && rm -rf /var/lib/apt/lists/*
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    make \
+    libssl-dev \
+    libffi-dev \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy the requirements file and install Python dependencies
+# Copy requirements and install
 COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
 
-# Copy the Django project code into the container
+# Stage 2: Runtime
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install runtime dependencies only (much smaller)
+RUN apt-get update && apt-get install -y \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy wheels from builder
+COPY --from=builder /app/wheels /wheels
+COPY --from=builder /app/requirements.txt .
+
+# Install from wheels (faster, no compilation needed)
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir /wheels/*
+
+# Copy application code
 COPY . /app/
 
-# Expose the port Daphne will listen on
+# Create non-root user for security
+RUN useradd -m -u 1000 django && \
+    chown -R django:django /app
+USER django
+
+# Expose port
 EXPOSE 8000
 
-# *** IMPORTANT: Replace 'app.asgi:application' with your actual Django ASGI path ***
+# Environment variable
 ENV DJANGO_ASGI_MODULE=app.asgi:application
 
-# Run Daphne, binding to all interfaces and using the defined module
-# The -b (bind) and -p (port) flags ensure it listens correctly inside the container.
-# Using the shell form of CMD ensures the environment variable is expanded.
-CMD daphne -b 0.0.0.0 -p 8000 $DJANGO_ASGI_MODULE
+# Run Daphne
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "app.asgi:application"]

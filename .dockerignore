@@ -1,17 +1,25 @@
-# Python
 *.pyc
-__pycache__/
-*.egg-info/
-.pytest_cache/
-
-# Environments
-.venv
-venv/
+__pycache__
+*.pyo
+*.pyd
+.Python
 env/
+venv/
+myevn*/
+*.env
 .env
-
-# Docker/Git
-Dockerfile
-docker-compose.yml
 .git
 .gitignore
+.dockerignore
+Dockerfile
+docker-compose.yml
+.vscode/
+.idea/
+*.sqlite3
+*.db
+db.sqlite3
+*.log
+node_modules/
+.DS_Store
+*.md
+README.md
