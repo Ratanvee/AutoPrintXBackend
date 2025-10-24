@@ -12,7 +12,7 @@ class CookiesJWTAuthentication(JWTAuthentication):
 
         try:
             user = self.get_user(validated_token)
-            print("Authenticated..")
+            # print("Authenticated..")
 
         except Exception as e:
             print("Authentication Error occuring : ",e)

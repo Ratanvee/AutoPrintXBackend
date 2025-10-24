@@ -34,5 +34,7 @@ from .views import  upload_file_view
 
 urlpatterns = [
     path('upload/<slug:unique_url>/', upload_file_view, name='upload-file'),
+    # path('upload/<slug:unique_url>/', upload_file_view, name='upload-file'),
+
 
 ]

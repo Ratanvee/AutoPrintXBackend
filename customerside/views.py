@@ -111,55 +111,18 @@ def upload_file_view(request, unique_url):
         if not uploaded_file:
             return Response({"error": "File to upload is missing."}, status=400)
             
-
-        print("this is uploaded file here : ", uploaded_file)
-        # **Rewind file pointer**
-        # This is critical if the file object was already accessed by the serializer or middleware
-        # uploaded_file.seek(0) 
-        print("this is goint to upload ")
+        print("this is going to upload ")
         imgkit = ImageKitClient(uploaded_file)
         result = imgkit.upload_media
-        print(result)
+        print("File uploaded to ImageKit")
         file_url = result['url']
-        print("this is file url kd fdklf : ", file_url)
-
-        # 3. Upload File to ImageKit.io
-        # try:
-        #     base_filename = uploaded_file.name
-    
-        #     imagekit_upload_result = upload_file_to_imagekit(
-        #         file_object=uploaded_file,
-        #         file_name=base_filename,
-        #         # Create a descriptive path for organization
-        #         folder_path=f'documents/{unique_url}' 
-        #     )
-
-        #     if not imagekit_upload_result or imagekit_upload_result.get('error'):
-        #         # The previous logic handled this error, ensure it's robust
-        #         error_msg = imagekit_upload_result.get('message', 'ImageKit upload failed.') if imagekit_upload_result else 'ImageKit upload failed.'
-        #         # The 'ImageKit Upload Error: ImageKit upload failed.' log suggests the error is caught here
-        #         print('ImageKit Upload Error:', error_msg) 
-        #         return Response({"error": f"File upload failed: {error_msg}"}, status=500)
-
-        #     file_url = imagekit_upload_result.get('url')
-        #     file_id = imagekit_upload_result.get('fileId')
-            
-        # except Exception as e:
-        #     print(f'Critical error during ImageKit upload process: {e}')
-        #     return Response({"error": f"A critical error occurred during file upload process: {e}"}, status=500)
+        # print("this is file url kd fdklf : ", file_url)
 
         # 4. Prepare Data for Django Model/Serializer
         data['Owner'] = user.id
         data['Unique_url'] = unique_url
         data['FileUpload'] = file_url # Add the URL from ImageKit
-        # data['FileId'] = file_id   # Add the ID from ImageKit
-        
-        # Remove the file object from data, as the serializer shouldn't process it anymore
-        # The serializer should now expect 'FileUrl' and 'FileId' instead of 'FileUpload'
-        # if 'FileUpload' in data:
-        #      del data['FileUpload']
-
-
+    
         # 5. Validate and Save Django Model
         serializer = UploadFilesSerializer(data=data)
 

@@ -28,51 +28,51 @@ environ.Env.read_env()
 #         'role': 'Developer'
 #     })
 
-class CustomTokenObtainPairView(TokenObtainPairView):
-    def post(self, request, *args, **kwargs):
-        try:
-            response = super().post(request, *args, **kwargs)
-            tokens = response.data
-            # access_token = tokens.get('access')
-            access_token = tokens['access']
-            # refresh_token = tokens.get('refresh')
-            refresh_token = tokens['refresh']
-            print(f"Access Token: {access_token}")
-            print(f"Refresh Token: {refresh_token}")
+# class CustomTokenObtainPairView(TokenObtainPairView):
+#     def post(self, request, *args, **kwargs):
+#         try:
+#             response = super().post(request, *args, **kwargs)
+#             tokens = response.data
+#             # access_token = tokens.get('access')
+#             access_token = tokens['access']
+#             # refresh_token = tokens.get('refresh')
+#             refresh_token = tokens['refresh']
+#             print(f"Access Token: {access_token}")
+#             print(f"Refresh Token: {refresh_token}")
 
-            res = Response()
+#             res = Response()
 
-            res.data = {'success': True, 'AccessToken': access_token, 'RefreshToken': refresh_token}
+#             res.data = {'success': True, 'AccessToken': access_token, 'RefreshToken': refresh_token}
 
 
-            # Cookie valid for 7 days (in seconds)
-            cookie_age = 7 * 24 * 60 * 60
+#             # Cookie valid for 7 days (in seconds)
+#             cookie_age = 7 * 24 * 60 * 60
 
-            res.set_cookie(
-                key = 'access_token',
-                value = access_token,
-                httponly = True,
-                secure = True,
-                samesite = 'None',
-                path = '/',
-                max_age=cookie_age,  # ← cookie expiry time
-            )
+#             res.set_cookie(
+#                 key = 'access_token',
+#                 value = access_token,
+#                 httponly = True,
+#                 secure = True,
+#                 samesite = 'None',
+#                 path = '/',
+#                 max_age=cookie_age,  # ← cookie expiry time
+#             )
 
-            res.set_cookie(
-                key = 'refresh_token',
-                value = refresh_token,
-                httponly = True,
-                secure = True,
-                samesite = 'None',
-                path = '/',
-                max_age=cookie_age * 4,  # refresh token can last longer (e.g., 28 days)
-            )
-            return res
-        # except:
-        #     return Response({'success': False})
-        except Exception as e:
-            # Catch any other unexpected exceptions
-            return Response(f"An unexpected error occurred: {e}")
+#             res.set_cookie(
+#                 key = 'refresh_token',
+#                 value = refresh_token,
+#                 httponly = True,
+#                 secure = True,
+#                 samesite = 'None',
+#                 path = '/',
+#                 max_age=cookie_age * 4,  # refresh token can last longer (e.g., 28 days)
+#             )
+#             return res
+#         # except:
+#         #     return Response({'success': False})
+#         except Exception as e:
+#             # Catch any other unexpected exceptions
+#             return Response(f"An unexpected error occurred: {e}")
 
 
 # from rest_framework_simplejwt.views import TokenObtainPairView
@@ -137,65 +137,65 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 #             return Response({'success': False, 'detail': f"An unexpected error occurred: {e}"}, status=500)
       
 
-# from rest_framework_simplejwt.views import TokenObtainPairView
-# from rest_framework.response import Response
-# # Import your custom serializer
-# from .serializer import EmailOrUsernameTokenObtainPairSerializer 
-# # (assuming you placed the serializer in a 'serializers.py' file)
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.response import Response
+# Import your custom serializer
+from .serializer import EmailOrUsernameTokenObtainPairSerializer 
+# (assuming you placed the serializer in a 'serializers.py' file)
 
-# class CustomTokenObtainPairView(TokenObtainPairView):
-#     # ⭐ Set the custom serializer class
-#     serializer_class = EmailOrUsernameTokenObtainPairSerializer 
+class CustomTokenObtainPairView(TokenObtainPairView):
+    # ⭐ Set the custom serializer class
+    serializer_class = EmailOrUsernameTokenObtainPairSerializer 
 
-#     def post(self, request, *args, **kwargs):
-#         try:
-#             # Calls the custom serializer's validate method
-#             response = super().post(request, *args, **kwargs)
+    def post(self, request, *args, **kwargs):
+        try:
+            # Calls the custom serializer's validate method
+            response = super().post(request, *args, **kwargs)
             
-#             tokens = response.data
-#             access_token = tokens.get('access')
-#             refresh_token = tokens.get('refresh')
+            tokens = response.data
+            access_token = tokens.get('access')
+            refresh_token = tokens.get('refresh')
             
-#             # (Optional: Remove in production)
-#             print(f"Access Token: {access_token}") 
-#             print(f"Refresh Token: {refresh_token}")
+            # (Optional: Remove in production)
+            # print(f"Access Token: {access_token}") 
+            # print(f"Refresh Token: {refresh_token}")
 
-#             res = Response()
-#             res.data = {'success': True, 'AccessToken': access_token, 'RefreshToken': refresh_token}
+            res = Response()
+            res.data = {'success': True, 'AccessToken': access_token, 'RefreshToken': refresh_token}
 
-#             # Cookie valid for 7 days (in seconds)
-#             cookie_age = 7 * 24 * 60 * 60
+            # Cookie valid for 28 days (in seconds)
+            cookie_age = 28 * 24 * 60 * 60
 
-#             # Set Access Token Cookie
-#             res.set_cookie(
-#                 key = 'access_token',
-#                 value = access_token,
-#                 httponly = True,
-#                 # 🔥 FIX 1: Set to False for local HTTP testing
-#                 secure = False, 
-#                 # 🔥 FIX 2: Set to 'Lax' for safer local testing
-#                 samesite = 'Lax', 
-#                 path = '/',
-#                 max_age=cookie_age, 
-#             )
+            # Set Access Token Cookie
+            res.set_cookie(
+                key = 'access_token',
+                value = access_token,
+                httponly = True,
+                # 🔥 FIX 1: Set to False for local HTTP testing
+                secure = True, 
+                # 🔥 FIX 2: Set to 'Lax' for safer local testing
+                samesite = 'None', 
+                path = '/',
+                max_age=cookie_age, 
+            )
 
-#             # Set Refresh Token Cookie
-#             res.set_cookie(
-#                 key = 'refresh_token',
-#                 value = refresh_token,
-#                 httponly = True,
-#                 # 🔥 FIX 1: Set to False for local HTTP testing
-#                 secure = False, 
-#                 # 🔥 FIX 2: Set to 'Lax' for safer local testing
-#                 samesite = 'Lax',
-#                 path = '/',
-#                 max_age=cookie_age * 4, # e.g., 28 days
-#             )
-#             return res
+            # Set Refresh Token Cookie
+            res.set_cookie(
+                key = 'refresh_token',
+                value = refresh_token,
+                httponly = True,
+                # 🔥 FIX 1: Set to False for local HTTP testing
+                secure = True, 
+                # 🔥 FIX 2: Set to 'Lax' for safer local testing
+                samesite = 'None',
+                path = '/',
+                max_age=cookie_age * 4, # e.g., 28 days
+            )
+            return res
             
-#         except Exception as e:
-#             # Catch any other unexpected exceptions
-#             return Response({'success': False, 'detail': f"An unexpected error occurred: {e}"}, status=500)
+        except Exception as e:
+            # Catch any other unexpected exceptions
+            return Response({'success': False, 'detail': f"An unexpected error occurred: {e}"}, status=500)
 
 
 class CustomRefreshTokenView(TokenRefreshView):
@@ -215,7 +215,7 @@ class CustomRefreshTokenView(TokenRefreshView):
                 value=access_token,
                 httponly=True,
                 secure=True,
-                samesite='Lax',
+                samesite='None',
                 path='/'
             )
             return res  

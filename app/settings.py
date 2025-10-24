@@ -22,6 +22,27 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 AUTH_USER_MODEL = 'smartdocx.CustomUser'
 
+
+# settings.py
+
+import os
+
+# BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+STATIC_URL = '/static/'  # URL prefix for static files
+
+# Directory where Django will look for static files during development
+# STATICFILES_DIRS = [
+#     os.path.join(BASE_DIR, 'static'),
+# ]
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
+
+# Directory where 'collectstatic' will gather all static files for production
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+
 # AUTH_USER_MODEL = "smartdocx.CustomUser"
 
 # Quick-start development settings - unsuitable for production
@@ -32,7 +53,7 @@ AUTH_USER_MODEL = 'smartdocx.CustomUser'
 SECRET_KEY = env("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['*']  # Allow all hosts for development
 
@@ -83,8 +104,8 @@ MIDDLEWARE = [
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=10),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    # "ACCESS_TOKEN_LIFETIME": timedelta(minutes=10),
+    # "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
 }
@@ -117,7 +138,7 @@ CSRF_COOKIE_SAMESITE = "None"
 CSRF_COOKIE_SECURE = True
 
 # Keep cookie active for 7 days
-SESSION_COOKIE_AGE = 60 * 60 * 24 * 7
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 28
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
 # REST_FRAMEWORK = {
@@ -166,23 +187,23 @@ WSGI_APPLICATION = 'app.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
 DATABASES = {
     'default': {
-        'ENGINE': 'djongo',
-        'NAME': 'APXDB',
-        'CLIENT': {
-            'host': 'mongodb+srv://ratanveer420_db_user:rrREs8gSXDNGndye@cluster0.msrajed.mongodb.net/APXDB?retryWrites=true&w=majority',
-            'tls': True
-        }
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
-}  
+}
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'djongo',
+#         'NAME': 'APXDB',
+#         'CLIENT': {
+#             'host': 'mongodb+srv://ratanveer420_db_user:rrREs8gSXDNGndye@cluster0.msrajed.mongodb.net/APXDB?retryWrites=true&w=majority',
+#             'tls': True
+#         }
+#     }
+# }  
 
 
 # Password validation
@@ -231,8 +252,8 @@ STATICFILES_DIRS = [
 
 # 2. MANDATORY for production: Define the root directory where 'collectstatic' will dump all files
 # This path is relative to the container's filesystem.
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATIC_URL = 'static/'
+# STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+# STATIC_URL = 'static/'
 
 
 # Default primary key field type
