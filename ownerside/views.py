@@ -116,9 +116,6 @@ class DashboardView(APIView):
             "username": user.username,
             "email": user.email,
             "unique_url": user.unique_url,
-            "total_orders": user.total_orders,
-            "total_revenue": serialize_mongo_data(user.total_revenue),
-            "total_customers": user.total_customers,
         }
         
         return Response({
@@ -494,3 +491,344 @@ def get_owner_orders(request):
         "total_pages": paginator.num_pages,
         "current_page": page_obj.number
     })
+
+
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.utils.timezone import localtime, now
+from datetime import timedelta
+# from .models import UploadFiles  # Adjust based on your models
+from .utils import convert_decimal128
+class RecentActivityView(APIView):
+    """
+    Return recent activities for the logged-in user (shop owner).
+    Activities include: new orders, payments, deliveries, and new customers.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        print("Logged-in user:", user)
+
+        if not user or user.is_anonymous:
+            return Response({"error": "User not authenticated"}, status=401)
+
+        # ✅ Get limit from query params, default to 4
+        limit = int(request.GET.get('limit', 4))
+
+        try:
+            activities = []
+            activity_id = 1
+
+            # Get recent time window (last 24 hours)
+            recent_time = now() - timedelta(hours=24)
+
+            # ✅ 1. New Orders Activity
+            new_orders = UploadFiles.objects.filter(
+                Owner=user,
+                Created_at__gte=recent_time
+            ).order_by('-Created_at')[:5]
+
+            for order in new_orders:
+                time_diff = self.get_time_ago(order.Created_at)
+                activities.append({
+                    "id": activity_id,
+                    "type": "order",
+                    "message": f"New order from {order.CustomerName or 'Unknown Customer'}",
+                    "time": time_diff,
+                    "timestamp": order.Created_at.isoformat(),
+                    "order_id": order.OrderId,
+                })
+                activity_id += 1
+
+            # ✅ 2. Payment Activities
+            paid_orders = UploadFiles.objects.filter(
+                Owner=user,
+                PaymentStatus=True,
+                Updated_at__gte=recent_time
+            ).order_by('-Updated_at')[:5]
+
+            for order in paid_orders:
+                time_diff = self.get_time_ago(order.Updated_at)
+                activities.append({
+                    "id": activity_id,
+                    "type": "payment",
+                    "message": f"Payment received for Order #{order.OrderId}",
+                    "time": time_diff,
+                    "timestamp": order.Updated_at.isoformat(),
+                    "order_id": order.OrderId,
+                    "amount": f"₹{convert_decimal128(order.PaymentAmount):.2f}",
+                })
+                activity_id += 1
+
+            # ✅ 3. Delivery/Completed Orders Activity
+            completed_orders = UploadFiles.objects.filter(
+                Owner=user,
+                PrintStatus="Complete",
+                Updated_at__gte=recent_time
+            ).order_by('-Updated_at')[:5]
+
+            for order in completed_orders:
+                time_diff = self.get_time_ago(order.Updated_at)
+                activities.append({
+                    "id": activity_id,
+                    "type": "delivery",
+                    "message": f"Order #{order.OrderId} delivered",
+                    "time": time_diff,
+                    "timestamp": order.Updated_at.isoformat(),
+                    "order_id": order.OrderId,
+                })
+                activity_id += 1
+
+            # ✅ 4. New Customer Registrations (ONLY UNIQUE CUSTOMERS)
+            try:
+                # Get all customer names from orders in recent time
+                recent_customer_names = UploadFiles.objects.filter(
+                    Owner=user,
+                    Created_at__gte=recent_time
+                ).values_list('CustomerName', flat=True).distinct()
+
+                # Check if this customer existed before the recent time window
+                for customer_name in recent_customer_names:
+                    if not customer_name:
+                        continue
+                    
+                    # Check if this customer had any orders BEFORE the recent time window
+                    previous_orders = UploadFiles.objects.filter(
+                        Owner=user,
+                        CustomerName=customer_name,
+                        Created_at__lt=recent_time
+                    ).exists()
+                    
+                    # ✅ Only add if customer is NEW (no previous orders)
+                    if not previous_orders:
+                        # Get the first order of this new customer
+                        first_order = UploadFiles.objects.filter(
+                            Owner=user,
+                            CustomerName=customer_name,
+                            Created_at__gte=recent_time
+                        ).order_by('Created_at').first()
+                        
+                        if first_order:
+                            time_diff = self.get_time_ago(first_order.Created_at)
+                            activities.append({
+                                "id": activity_id,
+                                "type": "customer",
+                                "message": f"New customer registration: {customer_name}",
+                                "time": time_diff,
+                                "timestamp": first_order.Created_at.isoformat(),
+                                "customer_name": customer_name,
+                            })
+                            activity_id += 1
+                            
+            except Exception as e:
+                print(f"Error fetching customers: {str(e)}")
+
+            # Sort all activities by timestamp (most recent first)
+            activities.sort(key=lambda x: x['timestamp'], reverse=True)
+
+            # ✅ Return limited activities based on query param
+            return Response({"activities": activities[:limit]}, status=200)
+
+        except Exception as e:
+            print("Error fetching recent activities:", str(e))
+            return Response({"error": str(e)}, status=500)
+
+    def get_time_ago(self, timestamp):
+        """
+        Calculate human-readable time difference
+        """
+        now_time = now()
+        diff = now_time - timestamp
+
+        if diff.days > 0:
+            if diff.days == 1:
+                return "1 day ago"
+            return f"{diff.days} days ago"
+        
+        hours = diff.seconds // 3600
+        if hours > 0:
+            if hours == 1:
+                return "1 hour ago"
+            return f"{hours} hours ago"
+        
+        minutes = diff.seconds // 60
+        if minutes > 0:
+            if minutes == 1:
+                return "1 min ago"
+            return f"{minutes} min ago"
+        
+        return "Just now"
+    
+
+# from customerside.utils import ImageKitClient
+
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# def upload_file_to_imagekit(request):
+#     if request.method == 'POST':
+#         print("File upload view initiated.")
+#         uploaded_file = request.FILES.get('file')
+#         print("Uploaded file:", uploaded_file)
+#         if not uploaded_file:
+#             return Response({"error": "No file uploaded"}, status=400)
+
+#         try:
+#             imgkit = ImageKitClient(uploaded_file)
+#             result = imgkit.upload_media()
+#             return Response({"url": result['url']}, status=200)
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=500)
+
+#     return Response({"error": "Invalid request method"}, status=405)
+
+
+
+import json # Used for parsing the 'data' field
+from customerside.utils import ImageKitClient
+
+def update_user_settings(user, section, data, uploaded_file=None):
+    """
+    Simulates updating user settings based on section.
+    This function has been kept for consistency and mocking the database logic.
+    """
+    
+    # In a real application, you should handle potential errors (e.g., integrity errors, validation errors)
+    if section == 'general':
+        # Assuming CustomUser model has fields like shop_name, owner_phone_number, etc.
+        user.shop_name = data.get('shopName', user.shop_name)
+        user.email = data.get('email', user.email)
+        user.owner_phone_number = data.get('phone', user.owner_phone_number)
+        user.owner_shop_address = data.get('address', user.owner_shop_address)
+        # user.currency = data.get('currency', user.currency)
+        # user.timezone = data.get('timezone', user.timezone)
+        user.info_modified = True
+        
+        user.save()
+        print("General settings updated for user:", user.username)
+        return True
+
+    if section == 'profile':
+        user.owner_fullname = data.get('firstName', user.first_name)
+        # user.last_name = data.get('lastName', user.last_name)
+        user.email = data.get('email', user.email)
+        user.owner_shop_image = data.get('avatarFile', user.owner_shop_image)
+        # user.owner_phone_number = data.get('phone', user.owner_phone_number)
+        user.info_modified = True
+        
+        user.save()
+        print("Profile settings updated for user:", user.username)
+        return True
+    
+    if section == 'notifications':
+        print("Notifications settings update called.")
+        return True
+    
+    if section == 'billing':
+        print("Billing settings update called.")
+        return True
+
+    
+    # You would add logic for other sections like 'billing', 'users', etc. here
+    return False
+
+# --- DRF Function-Based API View (Based on user's structure) ---
+
+# NOTE: Ensure you uncomment and import the necessary DRF decorators in your actual settings file
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+# @parser_classes([MultiPartParser, FormParser])
+def DashboardSettings(request):
+    print("Dashboard Settings view initiated.")
+    
+    # In a decorated view with IsAuthenticated, request.user is the authenticated user object
+    user = request.user 
+
+    # --- GET Request Handling ---
+    if request.method == 'GET':
+        # This lookup is redundant if IsAuthenticated is used, as request.user is already the user instance.
+        # But kept in case CustomUser is used for extra context lookup.
+        # We will simplify by just returning user details:
+        if user.is_authenticated:
+            return Response({"message": f"User Found: {user.username}. Use POST to update settings."})
+        else:
+            return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+        
+    # --- POST Request Handling (Settings Update) ---
+    if request.method == 'POST':
+        # 1. Access the submitted data via request.data (correct DRF method)
+        # request.data contains all fields (section, data) sent from the frontend.
+        
+        # Get the 'section' (e.g., 'general')
+        section = request.data.get('section')
+        
+        # Get the 'data' containing the settings values (this might be a string if sent via multipart/form-data)
+        raw_data = request.data.get('data')
+        
+        # 2. Access File Object via request.FILES (File key is assumed to be 'avatarFile')
+        uploaded_file = request.FILES.get('avatar') 
+        
+        # print("This is raw_data: ", raw_data)
+        print("This is section: ", section)
+        # print(f"File received: {uploaded_file.name if uploaded_file else 'None'}")
+
+        
+        # --- Critical Parsing Step (Handles multipart/form-data string issue) ---
+        settings_data = {}
+        
+        if not raw_data:
+            return Response({"error": "Missing 'data' field in request."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # If the frontend uses multipart/form-data, non-file fields arrive as strings, 
+        # so we must parse the 'data' field back into a JSON object (dictionary).
+        if isinstance(raw_data, str):
+            try:
+                settings_data = json.loads(raw_data)
+            except json.JSONDecodeError:
+                return Response({"error": "Invalid JSON format in the 'data' field."}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            # If the frontend used application/json, it's already a dictionary
+            settings_data = raw_data
+
+
+        # 2. Check essential fields
+        if not section or not settings_data:
+            return Response(
+                {"error": "Both 'section' and 'data' are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if section == "profile":
+            imgkit = ImageKitClient(file = uploaded_file)
+            result = imgkit.upload_media
+            uploaded_file_url = result['url']
+            settings_data['avatarFile'] = uploaded_file_url  # Include file in settings data if needed
+
+        print("Parsed settings_data:", settings_data)
+
+        # 3. Process and Update
+        try:
+            # We use request.user directly since the user is authenticated
+            
+            if update_user_settings(user, section, settings_data, uploaded_file):
+                return Response(
+                    {"message": f"{section.capitalize()} settings updated successfully.", "updated_data": settings_data},
+                    status=status.HTTP_200_OK
+                )
+            else:
+                 return Response(
+                    {"error": f"Invalid section '{section}' provided or update failed."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+        except Exception as e:
+            print(f"Error during settings update: {e}")
+            return Response(
+                {"error": f"Server processing error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    return Response({"error": "Method not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)

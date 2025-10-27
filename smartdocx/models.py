@@ -6,9 +6,13 @@ from django.contrib.auth.models import AbstractUser, Group, Permission
 
 class CustomUser(AbstractUser):
     unique_url = models.CharField(max_length=255, unique=True, blank=True, null=True)
-    total_orders = models.IntegerField(default=0)
-    total_revenue = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    total_customers = models.IntegerField(default=0)
+    shop_name = models.CharField(max_length=255, default="AutoPrintX Shop")
+    owner_fullname = models.CharField(max_length=255, default="Unknown")
+    owner_phone_number = models.CharField(max_length=10, default="Unknown")
+    owner_shop_address = models.CharField(max_length=255, default="Unknown")
+    info_modified = models.BooleanField(default=False)
+    owner_nationality = models.CharField(max_length=10, default="IN")
+    owner_shop_image = models.CharField(max_length=100, blank=True, null=True)
     id = models.AutoField(primary_key=True)  # Ensure it's an integer, not an ObjectId
 
     # Fix conflicting reverse accessors
@@ -38,8 +42,6 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.username
-
-
 
 
 # class Note(models.Model):
@@ -121,3 +123,51 @@ class UploadFiles(models.Model):
 
 #     def __str__(self):
 #         return self.name
+
+
+
+# models.py
+from django.db import models
+from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
+import random
+
+class OTPVerification(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
+    email_or_phone = models.CharField(max_length=255)
+    otp = models.CharField(max_length=4)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_verified = models.BooleanField(default=False)
+    attempts = models.IntegerField(default=0)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def save(self, *args, **kwargs):
+        """Set expiry time to 10 minutes from creation"""
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(minutes=10)
+        super().save(*args, **kwargs)
+    
+    def is_expired(self):
+        """Check if OTP has expired"""
+        return timezone.now() > self.expires_at
+    
+    def can_attempt(self):
+        """Allow max 5 attempts"""
+        return self.attempts < 5
+    
+    @staticmethod
+    def generate_otp():
+        """Generate 4-digit OTP"""
+        return str(random.randint(1000, 9999))
+    
+    @staticmethod
+    def delete_expired():
+        """Delete all expired OTP records"""
+        expired_otps = OTPVerification.objects.filter(expires_at__lt=timezone.now())
+        count = expired_otps.count()
+        expired_otps.delete()
+        return count

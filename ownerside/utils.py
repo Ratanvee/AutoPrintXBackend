@@ -284,19 +284,19 @@ def get_dashboard_stats(unique_url):
 
     # ---------------- Printed Pages ----------------
     # Calculate in Python since Djongo doesn't support F() expressions in aggregation
-    today_pending = today_qs.filter(PrintStatus='Pending').only('NoOfPages', 'NumberOfCopies')
+    today_pending = today_qs.filter(PrintStatus='Complete').only('NoOfPages', 'NumberOfCopies')
     today_pages = sum(
         (obj.NoOfPages or 0) * (obj.NumberOfCopies or 0) 
         for obj in today_pending
     )
 
-    yesterday_pending = yesterday_qs.filter(PrintStatus='Pending').only('NoOfPages', 'NumberOfCopies')
+    yesterday_pending = yesterday_qs.filter(PrintStatus='Complete').only('NoOfPages', 'NumberOfCopies')
     yesterday_pages = sum(
         (obj.NoOfPages or 0) * (obj.NumberOfCopies or 0) 
         for obj in yesterday_pending
     )
 
-    all_pending = all_qs.filter(PrintStatus='Pending').only('NoOfPages', 'NumberOfCopies')
+    all_pending = all_qs.filter(PrintStatus='Complete').only('NoOfPages', 'NumberOfCopies')
     total_pages = sum(
         (obj.NoOfPages or 0) * (obj.NumberOfCopies or 0) 
         for obj in all_pending

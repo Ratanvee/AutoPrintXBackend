@@ -10,11 +10,13 @@ imagekit = ImageKit(
     url_endpoint=settings.IMAGEKIT_URL_ENDPOINT
 )
 
-
+# 68fe3fb65c7cd75eb837152d
 class ImageKitClient():
-    def __init__(self, file):
-        self.file = self.convert_to_binary(file)
-        self.file_name = file.name
+    def __init__(self, file=None, file_id=None):
+        self.file = file
+        self.file_id = file_id
+        # self.file_name = file.name
+        
 
     def convert_to_binary(self, file):
         self.binary_file = base64.b64encode(file.read())
@@ -23,7 +25,14 @@ class ImageKitClient():
     @property
     def upload_media(self):
         result = imagekit.upload_file(
-            file = self.file,
-            file_name = self.file_name,
+            file = self.convert_to_binary(self.file),
+            file_name = self.file.name,
         )
         return result.response_metadata.raw
+    
+    # @property
+    def delete_media(self, file_id):
+        print("this is file id for deletion : ", file_id)
+        result = imagekit.delete_file(file_id=file_id)
+        print("This is delete media result: ", result)
+        return result

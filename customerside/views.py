@@ -66,6 +66,40 @@ from smartdocx.serializer import UploadFilesSerializer
 
 
 
+def format_shop_data_for_frontend(raw_data: dict) -> dict:
+    """
+    Transforms raw Python owner data into the structured format expected by the React frontend.
+    
+    Args:
+        raw_data: The dictionary containing all owner and shop details from the backend.
+        
+    Returns:
+        A new dictionary with keys mapped to the frontend's required structure.
+    """
+    
+    # Define a default service and placeholder image for fields that might be missing
+    DEFAULT_SERVICE = "Stationary & General Goods"
+    PLACEHOLDER_IMAGE = "https://placehold.co/150x150/007bff/ffffff?text=Shop+Image"
+
+    # Use .get() with a fallback value to safely access dictionary keys
+    formatted_data = {
+        # --- Shop Details Mapping ---
+        'name': raw_data.get('shop_name', 'Unnamed Shop'),
+        'service': DEFAULT_SERVICE, # Placeholder value since 'service' wasn't in the raw data
+        'location': raw_data.get('owner_shop_address', 'Address Not Available'),
+        'image': raw_data.get('owner_shop_image', PLACEHOLDER_IMAGE),
+
+        # --- Contact/Owner Info Mapping ---
+        # Prepending "Owned by" for a display-ready string, matching the original JS example
+        'ownerName': f"Owned by {raw_data.get('owner_fullname', 'Shop Owner')}",
+        'phone': raw_data.get('owner_phone_number', 'N/A'),
+        'email': raw_data.get('email', 'N/A'),
+        
+        # Assuming the WhatsApp number is the same as the primary phone number
+        'whatsapp': raw_data.get('owner_phone_number', 'N/A'),
+    }
+    
+    return formatted_data
 
 
 
@@ -90,9 +124,12 @@ def upload_file_view(request, unique_url):
     if request.method == 'GET':
         try:
             user = CustomUser.objects.filter(unique_url=unique_url).first()
+            owner_info = CustomUser.objects.filter(unique_url=unique_url).values('username', 'email', 'shop_name', 'owner_fullname', 'owner_phone_number', 'owner_shop_address', 'owner_shop_image').first()
+            # print("All owner info for this user:", owner_info)
+
             if not user:
                 return Response({"error": "Shop not Exist, Try with other Shop, Please Check URL"})
-            return Response({"message": f"Upload form for unique_url: {unique_url}. Use POST to upload file."})
+            return Response({"message": f"Upload form for unique_url: {unique_url}. Use POST to upload file.", "owner_info": format_shop_data_for_frontend(owner_info)})
         except Exception:
             return Response({"error": "Shop not Exist, Try with other Shop"}), 404
     # --- END GET Request Handling ---
