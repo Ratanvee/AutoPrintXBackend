@@ -86,7 +86,9 @@ class UploadFiles(models.Model):
     Unique_url = models.CharField(max_length=255, blank=True, null=True)
     OrderId = models.CharField(max_length=100, blank=True, null=True)
     # FileUpload = models.FileField(upload_to='documents/', blank=True, null=True)
-    FileUpload = models.CharField(max_length=100, blank=True, null=True)
+    # FileUpload = models.CharField(max_length=100, blank=True, null=True)
+    FileUpload = models.TextField(default='', blank=True, null=True)  # TextField for unlimited length
+    FileUploadID = models.CharField(max_length=255, default='', blank=True, null=True)  # File IDs are typically shorter
     # FileUrl = models.CharField(max_length=500, blank=True, null=True) # ADD THIS
     # FileId = models.CharField(max_length=255, blank=True, null=True)  # Store ImageKit's File ID
     PaperSize = models.CharField(max_length=20, default='A4')

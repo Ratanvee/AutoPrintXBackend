@@ -143,7 +143,7 @@ class UploadFilesSerializer(serializers.ModelSerializer):
     class Meta:
         model = UploadFiles
         # fields = '__all__'
-        fields = ['Unique_url', 'OrderId', 'FileUpload', 'PaperSize', 'PaperType', 'PrintColor', 'PrintSide', 'Binding', 'NumberOfCopies','PaymentAmount', 'PaymentStatus','CustomerName', 'Owner', 'Updated_at', 'Transaction_id', 'NoOfPages', 'PrintStatus', 'Created_at']
+        fields = ['Unique_url', 'OrderId', 'FileUpload', 'FileUploadID', 'PaperSize', 'PaperType', 'PrintColor', 'PrintSide', 'Binding', 'NumberOfCopies', 'PaymentAmount', 'PaymentStatus', 'CustomerName', 'Owner', 'Updated_at', 'Transaction_id', 'NoOfPages', 'PrintStatus', 'Created_at']
         # read_only_fields = ['Updated_at', 'Owner']
 
     def create(self, validated_data):

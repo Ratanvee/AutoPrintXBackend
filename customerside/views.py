@@ -153,12 +153,14 @@ def upload_file_view(request, unique_url):
         result = imgkit.upload_media
         print("File uploaded to ImageKit")
         file_url = result['url']
+        file_id = result.get('fileId') or result.get('file_id')  # Check ImageKit response structure
         # print("this is file url kd fdklf : ", file_url)
 
         # 4. Prepare Data for Django Model/Serializer
         data['Owner'] = user.id
         data['Unique_url'] = unique_url
         data['FileUpload'] = file_url # Add the URL from ImageKit
+        data['FileUploadID'] = file_id
     
         # 5. Validate and Save Django Model
         serializer = UploadFilesSerializer(data=data)

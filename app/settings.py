@@ -75,7 +75,6 @@ INSTALLED_APPS = [
     'customerside',
     'django_extensions',
     'imagekit',
-    'django_celery_beat',
 ]
 
 
