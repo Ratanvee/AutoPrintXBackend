@@ -211,15 +211,58 @@ from .models import OTPVerification
 
 User = get_user_model()
 
+# class SendOTPSerializer(serializers.Serializer):
+#     email_or_phone = serializers.CharField(max_length=255)
+    
+#     def validate_email_or_phone(self, value):
+#         # Check if user exists with this email
+#         if '@' in value:
+#             if not User.objects.filter(email=value).exists():
+#                 return serializers.ValidationError("User with this email does not exist.")
+#         return value
+
 class SendOTPSerializer(serializers.Serializer):
     email_or_phone = serializers.CharField(max_length=255)
+    purpose = serializers.ChoiceField(
+        choices=['signup', 'forgot_password'],
+        default='forgot_password',
+        required=False
+    )
     
     def validate_email_or_phone(self, value):
-        # Check if user exists with this email
-        if '@' in value:
-            if not User.objects.filter(email=value).exists():
-                return serializers.ValidationError("User with this email does not exist.")
+        """Basic validation - check if it's a valid email format"""
+        if '@' not in value:
+            raise serializers.ValidationError("Please provide a valid email address.")
         return value
+    
+    def validate(self, data):
+        """
+        Cross-field validation based on purpose
+        This runs after individual field validation
+        """
+        email_or_phone = data.get('email_or_phone')
+        purpose = data.get('purpose', 'forgot_password')
+        
+        # Check if it's an email
+        if '@' in email_or_phone:
+            user_exists = User.objects.filter(email=email_or_phone).exists()
+            
+            if purpose == 'forgot_password':
+                # For forgot password, user MUST exist
+                if not user_exists:
+                    raise serializers.ValidationError({
+                        "email_or_phone": "No account found with this email."
+                    })
+            
+            elif purpose == 'signup':
+                # For signup, user MUST NOT exist
+                if user_exists:
+                    raise serializers.ValidationError({
+                        "email_or_phone": "An account with this email already exists."
+                    })
+        
+        return data
+
 
 class VerifyOTPSerializer(serializers.Serializer):
     email_or_phone = serializers.CharField(max_length=255)
