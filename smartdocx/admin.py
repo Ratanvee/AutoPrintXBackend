@@ -14,7 +14,7 @@ from .models import OTPVerification
 
 @admin.register(OTPVerification)
 class OTPVerificationAdmin(admin.ModelAdmin):
-    list_display = ['email_or_phone', 'otp', 'is_verified', 'created_at', 'attempts', 'expires_at']
+    list_display = ['email_or_phone', 'otp', 'is_verified', 'created_at', 'attempts', 'expires_at', 'max_attempts', 'purpose']
     # list_filter = ['is_verified', 'created_at']
     # search_fields = ['email_or_phone', 'otp']
     # readonly_fields = ['created_at', 'expires_at']

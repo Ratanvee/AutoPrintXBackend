@@ -74,45 +74,6 @@ class UploadFiles(models.Model):
     class Meta:
         verbose_name_plural = "Uploaded Files"
 
-# class OTPVerification(models.Model):
-#     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
-#     email_or_phone = models.CharField(max_length=255)
-#     otp = models.CharField(max_length=4)
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     expires_at = models.DateTimeField()
-#     is_verified = models.BooleanField(default=False)
-#     attempts = models.IntegerField(default=0)
-#     purpose = models.CharField(max_length=50, default='', null=True, blank=True)
-    
-#     class Meta:
-#         ordering = ['-created_at']
-    
-#     def save(self, *args, **kwargs):
-#         """Set expiry time to 10 minutes from creation"""
-#         if not self.expires_at:
-#             self.expires_at = timezone.now() + timedelta(minutes=10)
-#         super().save(*args, **kwargs)
-    
-#     def is_expired(self):
-#         """Check if OTP has expired"""
-#         return timezone.now() > self.expires_at
-    
-#     def can_attempt(self):
-#         """Allow max 5 attempts"""
-#         return self.attempts < 5
-    
-#     @staticmethod
-#     def generate_otp():
-#         """Generate 4-digit OTP"""
-#         return str(random.randint(1000, 9999))
-    
-#     @staticmethod
-#     def delete_expired():
-#         """Delete all expired OTP records"""
-#         expired_otps = OTPVerification.objects.filter(expires_at__lt=timezone.now())
-#         count = expired_otps.count()
-#         expired_otps.delete()
-#         return count
 
 class OTPVerification(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)

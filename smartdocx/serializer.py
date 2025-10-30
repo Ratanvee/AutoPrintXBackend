@@ -1,26 +1,12 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate, login
-from .models import CustomUser
+from .models import CustomUser, UploadFiles
 from django.contrib.auth.models import User
-from .models import UploadFiles
-# class UserRegisterSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = CustomUser
-#         fields = ['username', 'email', 'password']
-
-#     def create(self, validated_data):
-#         user = CustomUser(
-#             username=validated_data['username'],
-#             email=validated_data['email']
-#         )
-#         user.set_password(validated_data['password'])
-#         user.save()
-#         return user
-
-
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from django.contrib.auth import authenticate
 from rest_framework import exceptions
+from django.contrib.auth import get_user_model
+from .models import OTPVerification
+
 
 class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
@@ -81,9 +67,6 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 
 
-from rest_framework import serializers
-from .models import CustomUser
-
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, min_length=4)
 
@@ -111,33 +94,6 @@ class UserSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ['username']
 
-# class NoteSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Note
-#         fields = ['id', 'description']
-
-
-    
-# class UploadFilesSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = UploadFiles
-#         fields = '__all__'
-
-
-    
-
-# from rest_framework import serializers
-# from .models import UploadFiles
-
-# class UploadFilesSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = UploadFiles
-#         fields = '__all__'
-#         read_only_fields = ['Updated_at']
-
-
-from rest_framework import serializers
-from .models import UploadFiles
 
 class UploadFilesSerializer(serializers.ModelSerializer):
     class Meta:
@@ -149,10 +105,6 @@ class UploadFilesSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         return UploadFiles.objects.create(**validated_data)
 
-
-
-
-from rest_framework import serializers
 
 class ChangePasswordSerializer(serializers.Serializer):
     """
@@ -200,27 +152,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         return data
 
 
-
-
-
-
-# serializers.py
-from rest_framework import serializers
-from django.contrib.auth import get_user_model
-from .models import OTPVerification
-
 User = get_user_model()
-
-# class SendOTPSerializer(serializers.Serializer):
-#     email_or_phone = serializers.CharField(max_length=255)
-    
-#     def validate_email_or_phone(self, value):
-#         # Check if user exists with this email
-#         if '@' in value:
-#             if not User.objects.filter(email=value).exists():
-#                 return serializers.ValidationError("User with this email does not exist.")
-#         return value
-
 class SendOTPSerializer(serializers.Serializer):
     email_or_phone = serializers.CharField(max_length=255)
     purpose = serializers.ChoiceField(
