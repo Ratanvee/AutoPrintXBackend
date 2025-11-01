@@ -131,6 +131,7 @@ class DashboardView(APIView):
             "username": user.username,
             "email": user.email,
             "unique_url": user.unique_url,
+            'is_modified': user.info_modified,
         }
         
         return Response({
@@ -443,7 +444,7 @@ class UpdatePrintStatusAPIView(APIView):
             order.PrintStatus = "Complete"
             order.save()
             
-            print(f"Updated order {order_id} to Complete")
+            # print(f"Updated order {order_id} to Complete")
             
             return Response(
                 {"message": f"Order {order_id} marked as Complete"}, 
@@ -687,7 +688,7 @@ def update_user_settings(user, section, data, uploaded_file_url=None):
             user.email = data.get('email', user.email)
             user.owner_phone_number = data.get('phone', user.owner_phone_number)
             user.owner_shop_address = data.get('address', user.owner_shop_address)
-            user.info_modified = True
+            # user.info_modified = True
             user.save()
             return True
         
@@ -726,17 +727,32 @@ def DashboardSettings(request):
     user = request.user
     
     # GET: Return current settings
+    # GET: Return current settings in the exact format needed by frontend
     if request.method == 'GET':
+        # Prepare settings data
+        settings_data = {
+            "general": {
+                "shopName": getattr(user, 'shop_name'),
+                "email": user.email or '',
+                "phone": getattr(user, 'owner_phone_number', ''),
+                "address": getattr(user, 'owner_shop_address', ''),
+                "currency": "INR",  # Default value
+                "timezone": "Asia/Kolkata",  # Default value
+            },
+            "profile": {
+                "fullName": getattr(user, 'owner_fullname'),
+                "email": user.email or '',
+                "role": "Shop Owner",  # Default role
+                "avatar": getattr(user, 'owner_shop_image', ''),
+            }
+        }
+        
         return Response({
-            "message": f"User Found: {user.username}. Use POST to update settings.",
+            "success": True,
+            "settings": settings_data,
             "user": {
                 "username": user.username,
-                "email": user.email,
-                "shop_name": getattr(user, 'shop_name', ''),
-                "owner_fullname": getattr(user, 'owner_fullname', ''),
-                "owner_phone_number": getattr(user, 'owner_phone_number', ''),
-                "owner_shop_address": getattr(user, 'owner_shop_address', ''),
-                "owner_shop_image": getattr(user, 'owner_shop_image', ''),
+                "unique_url": getattr(user, 'unique_url', ''),
             }
         })
     

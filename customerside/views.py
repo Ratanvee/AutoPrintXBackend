@@ -64,7 +64,6 @@ def upload_file_view(request, unique_url):
         try:
             user = CustomUser.objects.filter(unique_url=unique_url).first()
             owner_info = CustomUser.objects.filter(unique_url=unique_url).values('username', 'email', 'shop_name', 'owner_fullname', 'owner_phone_number', 'owner_shop_address', 'owner_shop_image').first()
-            # print("All owner info for this user:", owner_info)
 
             if not user:
                 return Response({"error": "Shop not Exist, Try with other Shop, Please Check URL"})
@@ -87,13 +86,10 @@ def upload_file_view(request, unique_url):
         if not uploaded_file:
             return Response({"error": "File to upload is missing."}, status=400)
             
-        print("this is going to upload ")
         imgkit = ImageKitClient(uploaded_file)
         result = imgkit.upload_media
-        print("File uploaded to ImageKit")
         file_url = result['url']
         file_id = result.get('fileId') or result.get('file_id')  # Check ImageKit response structure
-        # print("this is file url kd fdklf : ", file_url)
 
         # 4. Prepare Data for Django Model/Serializer
         data['Owner'] = user.id

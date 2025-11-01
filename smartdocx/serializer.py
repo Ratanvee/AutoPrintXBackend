@@ -17,7 +17,6 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         # 1. Attempt to authenticate with the provided identifier (which could be username or email)
         identifier = attrs.get(self.username_field)
-        # print("this is Identifier : ", identifier)
         password = attrs.get('password')
         
         # Start with the default authentication attempt (e.g., username)
@@ -122,7 +121,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         2. Old password is correct for the current user.
         3. New password is not the same as the old password.
         """
-        print("This is data in serializer validate: ", data)
+        # print("This is data in serializer validate: ", data)
         new_password = data.get('newPassword')
         confirm_password = data.get('confirmPassword')
         old_password = data.get('currentPassword')

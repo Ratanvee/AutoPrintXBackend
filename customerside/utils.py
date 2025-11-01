@@ -24,6 +24,7 @@ class ImageKitClient():
     
     @property
     def upload_media(self):
+        print("file is uploading .....")
         result = imagekit.upload_file(
             file = self.convert_to_binary(self.file),
             file_name = self.file.name,

@@ -8,10 +8,10 @@ import random
 
 class CustomUser(AbstractUser):
     unique_url = models.CharField(max_length=255, unique=True, blank=True, null=True)
-    shop_name = models.CharField(max_length=255, default="AutoPrintX Shop")
-    owner_fullname = models.CharField(max_length=255, default="Unknown")
-    owner_phone_number = models.CharField(max_length=15, default="Unknown")
-    owner_shop_address = models.CharField(max_length=255, default="Unknown")
+    shop_name = models.CharField(max_length=255, blank=True, null=True)
+    owner_fullname = models.CharField(max_length=255, blank=True, null=True, default="")
+    owner_phone_number = models.CharField(max_length=15, blank=True, null=True)
+    owner_shop_address = models.CharField(max_length=255, blank=True, null=True)
     info_modified = models.BooleanField(default=False)
     owner_nationality = models.CharField(max_length=10, default="IN")
     owner_shop_image = models.CharField(max_length=100, blank=True, null=True)
