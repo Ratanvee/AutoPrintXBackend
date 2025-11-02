@@ -132,6 +132,7 @@ class DashboardView(APIView):
             "email": user.email,
             "unique_url": user.unique_url,
             'is_modified': user.info_modified,
+            'owner_name': user.owner_fullname,
         }
         
         return Response({
