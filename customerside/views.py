@@ -1,130 +1,17 @@
-# from rest_framework.decorators import api_view, permission_classes, parser_classes, authentication_classes
-# from rest_framework.permissions import AllowAny
-# from rest_framework.parsers import MultiPartParser, FormParser
-# from rest_framework.response import Response
-# from smartdocx.models import UploadFiles, CustomUser
-# from smartdocx.serializer import UploadFilesSerializer
-
-# def format_shop_data_for_frontend(raw_data: dict) -> dict:
-#     """
-#     Transforms raw Python owner data into the structured format expected by the React frontend.
-    
-#     Args:
-#         raw_data: The dictionary containing all owner and shop details from the backend.
-        
-#     Returns:
-#         A new dictionary with keys mapped to the frontend's required structure.
-#     """
-    
-#     # Define a default service and placeholder image for fields that might be missing
-#     DEFAULT_SERVICE = "Stationary & General Goods"
-#     PLACEHOLDER_IMAGE = "https://placehold.co/150x150/007bff/ffffff?text=Shop+Image"
-
-#     # Use .get() with a fallback value to safely access dictionary keys
-#     formatted_data = {
-#         # --- Shop Details Mapping ---
-#         'name': raw_data.get('shop_name', 'Unnamed Shop'),
-#         'service': DEFAULT_SERVICE, # Placeholder value since 'service' wasn't in the raw data
-#         'location': raw_data.get('owner_shop_address', 'Address Not Available'),
-#         'image': raw_data.get('owner_shop_image', PLACEHOLDER_IMAGE),
-
-#         # --- Contact/Owner Info Mapping ---
-#         # Prepending "Owned by" for a display-ready string, matching the original JS example
-#         'ownerName': f"Owned by {raw_data.get('owner_fullname', 'Shop Owner')}",
-#         'phone': raw_data.get('owner_phone_number', 'N/A'),
-#         'email': raw_data.get('email', 'N/A'),
-        
-#         # Assuming the WhatsApp number is the same as the primary phone number
-#         'whatsapp': raw_data.get('owner_phone_number', 'N/A'),
-#     }
-    
-#     return formatted_data
-
-
-
-# # views.py (assuming you import necessary components)
-
-# # from rest_framework.decorators import api_view # Assuming you use Django REST Framework
-# # from rest_framework.response import Response
-# from django.db import transaction # For atomic operations
-
-# # from .models import UploadFiles, CustomUser # Your models
-# # from .serializers import UploadFilesSerializer # Your serializer
-# from .utils import ImageKitClient # Import the function from Step 1
-# @api_view(['GET', 'POST'])
-# # @permission_classes([AllowAny])
-# @authentication_classes([])  # No authentication required
-# @permission_classes([])      # No permissions required
-# @parser_classes([MultiPartParser, FormParser])
-# def upload_file_view(request, unique_url):
-#     print("Uploading file view")
-
-#     # --- GET Request Handling (Existing code - kept for context) ---
-#     if request.method == 'GET':
-#         try:
-#             user = CustomUser.objects.filter(unique_url=unique_url).first()
-#             owner_info = CustomUser.objects.filter(unique_url=unique_url).values('username', 'email', 'shop_name', 'owner_fullname', 'owner_phone_number', 'owner_shop_address', 'owner_shop_image').first()
-
-#             if not user:
-#                 return Response({"error": "Shop not Exist, Try with other Shop, Please Check URL"})
-#             return Response({"message": f"Upload form for unique_url: {unique_url}. Use POST to upload file.", "owner_info": format_shop_data_for_frontend(owner_info)})
-#         except Exception:
-#             return Response({"error": "Shop not Exist, Try with other Shop"}), 404
-#     # --- END GET Request Handling ---
-
-#     # --- POST Request Handling ---
-#     if request.method == 'POST':
-#         # 1. Get User/Owner
-#         user = CustomUser.objects.filter(unique_url=unique_url).first()
-#         if not user:
-#             return Response({"error": "Invalid unique_url / Shop not exist"}, status=400)
-
-#         # 2. Extract Data and File
-#         data = request.data.copy()
-#         uploaded_file = request.FILES.get('FileUpload') # Assuming 'FileUpload' is the file input name
-
-#         if not uploaded_file:
-#             return Response({"error": "File to upload is missing."}, status=400)
-            
-#         imgkit = ImageKitClient(uploaded_file)
-#         result = imgkit.upload_media
-#         file_url = result['url']
-#         file_id = result.get('fileId') or result.get('file_id')  # Check ImageKit response structure
-
-#         # 4. Prepare Data for Django Model/Serializer
-#         data['Owner'] = user.id
-#         data['Unique_url'] = unique_url
-#         data['FileUpload'] = file_url # Add the URL from ImageKit
-#         data['FileUploadID'] = file_id
-    
-#         # 5. Validate and Save Django Model
-#         serializer = UploadFilesSerializer(data=data)
-
-#         if serializer.is_valid():
-#             with transaction.atomic():
-#                 # Save the model instance with the ImageKit URL/ID
-#                 instance = serializer.save()
-                
-#                 # OPTIONAL: You might want to save the original filename as well if needed
-#                 # instance.OriginalFileName = base_filename 
-#                 # instance.save() 
-                
-#             return Response(serializer.data, status=201)
-#         else:
-#             print('Serializer validation errors:', serializer.errors)
-#             return Response(serializer.errors, status=400)
-    
-#     return Response({"error": "Method not allowed"}, status=405) # Should be handled by @api_view
-
-
-
 from rest_framework.decorators import api_view, permission_classes, parser_classes, authentication_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
+from rest_framework import status
 from smartdocx.models import UploadFiles, CustomUser
 from smartdocx.serializer import UploadFilesSerializer
 from django.db import transaction
+import traceback
+import logging
+from app import settings
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 def format_shop_data_for_frontend(raw_data: dict) -> dict:
     """
@@ -164,69 +51,181 @@ def format_shop_data_for_frontend(raw_data: dict) -> dict:
 @permission_classes([])      # No permissions required
 @parser_classes([MultiPartParser, FormParser])
 def upload_file_view(request, unique_url):
-    # print("Uploading file view")
+    """
+    Handle file uploads and shop information retrieval.
+    
+    GET: Returns shop information
+    POST: Uploads files and creates order
+    """
+    
+    logger.info(f"Request received: {request.method} for unique_url: {unique_url}")
 
     # --- GET Request Handling ---
     if request.method == 'GET':
         try:
+            # Check if user exists
             user = CustomUser.objects.filter(unique_url=unique_url).first()
+            
+            if not user:
+                logger.warning(f"Shop not found for unique_url: {unique_url}")
+                return Response(
+                    {
+                        "error": "Shop does not exist. Please check the URL and try again.",
+                        "message": "The shop you're looking for could not be found."
+                    }, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Get owner information
             owner_info = CustomUser.objects.filter(unique_url=unique_url).values(
                 'username', 'email', 'shop_name', 'owner_fullname', 
                 'owner_phone_number', 'owner_shop_address', 'owner_shop_image'
             ).first()
 
-            if not user:
+            if not owner_info:
+                logger.error(f"Owner info not found for user: {unique_url}")
                 return Response(
-                    {"error": "Shop not Exist, Try with other Shop, Please Check URL"}, 
-                    status=404
+                    {
+                        "error": "Shop information is incomplete.",
+                        "message": "Unable to retrieve complete shop details."
+                    },
+                    status=status.HTTP_404_NOT_FOUND
                 )
+
+            logger.info(f"Successfully retrieved shop info for: {unique_url}")
             return Response({
-                "message": f"Upload form for unique_url: {unique_url}. Use POST to upload file.", 
-                "owner_info": format_shop_data_for_frontend(owner_info)
-            })
+                "message": f"Upload form for shop: {owner_info.get('shop_name', 'Unknown')}. Use POST to upload files.", 
+                "owner_info": format_shop_data_for_frontend(owner_info),
+                "success": True
+            }, status=status.HTTP_200_OK)
+            
         except Exception as e:
-            print(f"GET Error: {str(e)}")
-            return Response({"error": "Shop not Exist, Try with other Shop"}, status=404)
+            logger.error(f"GET request error for {unique_url}: {str(e)}\n{traceback.format_exc()}")
+            return Response(
+                {
+                    "error": "An error occurred while fetching shop information.",
+                    "message": "Please try again later or contact support.",
+                    "details": str(e) if settings.DEBUG else None
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     # --- POST Request Handling ---
     if request.method == 'POST':
         try:
-            # 1. Get User/Owner
+            logger.info(f"Processing file upload for unique_url: {unique_url}")
+            
+            # 1. Validate User/Shop
             user = CustomUser.objects.filter(unique_url=unique_url).first()
             if not user:
-                return Response({"error": "Invalid unique_url / Shop not exist"}, status=400)
+                logger.warning(f"Upload attempt for non-existent shop: {unique_url}")
+                return Response(
+                    {
+                        "error": "Invalid shop URL.",
+                        "message": "The shop does not exist. Please check the URL."
+                    }, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
 
-            # 2. Extract File (DO NOT COPY request.data)
+            # 2. Validate File Upload
             uploaded_file = request.FILES.get('FileUpload')
-
+            
             if not uploaded_file:
-                return Response({"error": "File to upload is missing."}, status=400)
+                logger.warning(f"Upload attempt without file for {unique_url}")
+                return Response(
+                    {
+                        "error": "No file uploaded.",
+                        "message": "Please select a file to upload."
+                    }, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
-            # 3. Check file size (25MB = 25 * 1024 * 1024 bytes)
-            MAX_FILE_SIZE = 25 * 1024 * 1024  # 25MB
+            # 3. Validate File Size (25MB limit)
+            MAX_FILE_SIZE = 25 * 1024 * 1024  # 25MB in bytes
+            file_size_mb = uploaded_file.size / (1024 * 1024)
+            
             if uploaded_file.size > MAX_FILE_SIZE:
-                return Response({
-                    "error": f"File size exceeds 25MB limit. Your file is {uploaded_file.size / (1024 * 1024):.2f}MB"
-                }, status=400)
+                logger.warning(
+                    f"File too large: {file_size_mb:.2f}MB for {unique_url}"
+                )
+                return Response(
+                    {
+                        "error": f"File size exceeds 25MB limit.",
+                        "message": f"Your file is {file_size_mb:.2f}MB. Please upload a file smaller than 25MB.",
+                        "file_size": f"{file_size_mb:.2f}MB",
+                        "max_size": "25MB"
+                    },
+                    status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+                )
             
-            # print(f"Uploading file: {uploaded_file.name}, Size: {uploaded_file.size / (1024 * 1024):.2f}MB")
+            # 4. Validate File Type (optional - add your allowed types)
+            allowed_extensions = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.jpeg', '.png']
+            file_extension = uploaded_file.name.lower().split('.')[-1]
             
-            # 4. Upload to ImageKit
-            from .utils import ImageKitClient
-            imgkit = ImageKitClient(uploaded_file)
-            result = imgkit.upload_media
+            if f'.{file_extension}' not in allowed_extensions:
+                logger.warning(
+                    f"Invalid file type: {file_extension} for {unique_url}"
+                )
+                return Response(
+                    {
+                        "error": "Invalid file type.",
+                        "message": f"File type '.{file_extension}' is not supported.",
+                        "allowed_types": ", ".join(allowed_extensions)
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
-            if not result:
-                return Response({"error": "Failed to upload file to ImageKit"}, status=500)
+            logger.info(
+                f"Uploading file: {uploaded_file.name} "
+                f"({file_size_mb:.2f}MB) for {unique_url}"
+            )
             
-            file_url = result.get('url')
-            file_id = result.get('fileId') or result.get('file_id')
+            # 5. Upload to ImageKit
+            try:
+                from .utils import ImageKitClient
+                imgkit = ImageKitClient(uploaded_file)
+                result = imgkit.upload_media
+                
+                if not result:
+                    logger.error(f"ImageKit upload failed for {unique_url}")
+                    return Response(
+                        {
+                            "error": "File upload to cloud storage failed.",
+                            "message": "Please try again or contact support."
+                        },
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+                
+                file_url = result.get('url')
+                file_id = result.get('fileId') or result.get('file_id')
+                
+                if not file_url:
+                    logger.error(f"ImageKit returned no URL for {unique_url}")
+                    return Response(
+                        {
+                            "error": "File upload incomplete.",
+                            "message": "Upload was successful but no file URL was returned."
+                        },
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+                
+                logger.info(f"Successfully uploaded to ImageKit: {file_id}")
+                
+            except Exception as e:
+                logger.error(
+                    f"ImageKit upload error for {unique_url}: "
+                    f"{str(e)}\n{traceback.format_exc()}"
+                )
+                return Response(
+                    {
+                        "error": "Cloud storage upload failed.",
+                        "message": "Unable to upload file to storage. Please try again.",
+                        "details": str(e) if settings.DEBUG else None
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
-            if not file_url:
-                return Response({"error": "ImageKit upload failed - no URL returned"}, status=500)
-
-            # 5. Prepare Data for Django Model (work with request.data directly, don't copy)
-            # Create a new dictionary with the data we need
+            # 6. Prepare Data for Database
             upload_data = {
                 'Owner': user.id,
                 'Unique_url': unique_url,
@@ -234,31 +233,91 @@ def upload_file_view(request, unique_url):
                 'FileUploadID': file_id,
             }
             
-            # Add any other fields from request.data (non-file fields)
+            # Add other form fields
             for key, value in request.data.items():
                 if key != 'FileUpload':  # Skip the file field
                     upload_data[key] = value
+            
+            logger.info(f"Validating serializer for {unique_url}")
         
-            # 6. Validate and Save Django Model
+            # 7. Validate and Save to Database
             serializer = UploadFilesSerializer(data=upload_data)
 
             if serializer.is_valid():
-                with transaction.atomic():
-                    instance = serializer.save()
-                    print(f"File uploaded successfully: {instance.id}")
+                try:
+                    with transaction.atomic():
+                        instance = serializer.save()
+                        logger.info(
+                            f"Order saved successfully: ID {instance.id} "
+                            f"for {unique_url}"
+                        )
+                        
+                    return Response(
+                        {
+                            "success": True,
+                            "message": "Order submitted successfully!",
+                            "data": serializer.data,
+                            "order_id": upload_data.get('OrderId'),
+                            "file_name": uploaded_file.name,
+                            "file_size": f"{file_size_mb:.2f}MB"
+                        },
+                        status=status.HTTP_201_CREATED
+                    )
                     
-                return Response(serializer.data, status=201)
+                except Exception as e:
+                    logger.error(
+                        f"Database save error for {unique_url}: "
+                        f"{str(e)}\n{traceback.format_exc()}"
+                    )
+                    return Response(
+                        {
+                            "error": "Failed to save order to database.",
+                            "message": "Your file was uploaded but order creation failed.",
+                            "details": str(e) if settings.DEBUG else None
+                        },
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
             else:
-                print('Serializer validation errors:', serializer.errors)
-                return Response(serializer.errors, status=400)
+                logger.warning(
+                    f"Serializer validation failed for {unique_url}: "
+                    f"{serializer.errors}"
+                )
+                
+                # Format validation errors for better user experience
+                error_messages = []
+                for field, errors in serializer.errors.items():
+                    for error in errors:
+                        error_messages.append(f"{field}: {error}")
+                
+                return Response(
+                    {
+                        "error": "Invalid order data.",
+                        "message": "Please check your input and try again.",
+                        "validation_errors": error_messages,
+                        "details": serializer.errors
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
                 
         except Exception as e:
-            print(f"POST Error: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return Response({
-                "error": "An error occurred while uploading the file",
-                "details": str(e)
-            }, status=500)
+            logger.error(
+                f"Unexpected POST error for {unique_url}: "
+                f"{str(e)}\n{traceback.format_exc()}"
+            )
+            return Response(
+                {
+                    "error": "An unexpected error occurred.",
+                    "message": "Please try again later or contact support.",
+                    "details": str(e) if settings.DEBUG else None
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
-    return Response({"error": "Method not allowed"}, status=405)
+    # Method not allowed
+    return Response(
+        {
+            "error": "Method not allowed.",
+            "message": "Only GET and POST requests are supported."
+        },
+        status=status.HTTP_405_METHOD_NOT_ALLOWED
+    )
