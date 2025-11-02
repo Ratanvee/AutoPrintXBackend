@@ -423,46 +423,123 @@ class OrdersChartData(APIView):
         return labels, revenue_data, orders_data
 
 
-# ============================================
-# ORDER MANAGEMENT
-# ============================================
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import AllowAny
 
 class UpdatePrintStatusAPIView(APIView):
-    """Update print status of a specific order to 'Complete'"""
+    """Update PrintStatus of a specific order to 'Complete' after printing"""
     permission_classes = [AllowAny]
     
     def post(self, request):
         order_id = request.data.get("order_id")
         
+        print("\n" + "=" * 70)
+        print("[ PRINT STATUS UPDATE REQUEST ]")
+        print(f"  Order ID: {order_id}")
+        print(f"  Timestamp: {timezone.now()}")
+        print("=" * 70)
+        
         if not order_id:
+            print("[ERROR] Missing order_id in request")
             return Response(
                 {"error": "order_id is required"}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
+            # Clean the order_id
+            order_id = str(order_id).strip()
+            
+            # Check if order exists
+            if not UploadFiles.objects.filter(OrderId=order_id).exists():
+                print(f"[ERROR] Order '{order_id}' not found in database")
+                
+                # Show similar orders for debugging
+                similar_orders = UploadFiles.objects.filter(
+                    OrderId__icontains=order_id[:5]
+                ).values_list('OrderId', flat=True)[:3]
+                
+                if similar_orders:
+                    print(f"  Similar orders found: {list(similar_orders)}")
+                
+                return Response(
+                    {
+                        "error": "Order not found",
+                        "order_id": order_id
+                    }, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Get current status before update
             order = UploadFiles.objects.get(OrderId=order_id)
-            order.PrintStatus = "Complete"
-            order.save()
+            old_status = order.PrintStatus
             
-            # print(f"Updated order {order_id} to Complete")
+            print(f"[ INFO ] Found order: {order_id}")
+            print(f"  Current PrintStatus: {old_status}")
             
-            return Response(
-                {"message": f"Order {order_id} marked as Complete"}, 
-                status=status.HTTP_200_OK
+            # Update PrintStatus to Complete
+            updated_count = UploadFiles.objects.filter(OrderId=order_id).update(
+                PrintStatus="Complete"
             )
+            
+            if updated_count > 0:
+                print(f"[ SUCCESS ] ✓ Updated PrintStatus")
+                print(f"  Order: {order_id}")
+                print(f"  Status: {old_status} → Complete")
+                print(f"  Records updated: {updated_count}")
+                print("=" * 70 + "\n")
+                
+                return Response(
+                    {
+                        "success": True,
+                        "message": f"Order {order_id} PrintStatus updated to Complete",
+                        "order_id": order_id,
+                        "old_status": old_status,
+                        "new_status": "Complete",
+                        "updated": True
+                    }, 
+                    status=status.HTTP_200_OK
+                )
+            else:
+                print(f"[WARN] No records updated for order {order_id}")
+                return Response(
+                    {
+                        "error": "Update failed - no records modified",
+                        "order_id": order_id
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
             
         except UploadFiles.DoesNotExist:
+            print(f"[ERROR] Order not found: {order_id}")
             return Response(
-                {"error": "Order not found"}, 
+                {
+                    "error": "Order not found",
+                    "order_id": order_id
+                }, 
                 status=status.HTTP_404_NOT_FOUND
             )
+            
         except Exception as e:
+            print(f"[FATAL] Unexpected error updating PrintStatus")
+            print(f"  Error: {str(e)}")
+            print(f"  Type: {type(e).__name__}")
+            
+            import traceback
+            traceback.print_exc()
+            
             return Response(
-                {"error": str(e)},
+                {
+                    "error": str(e),
+                    "type": type(e).__name__,
+                    "order_id": order_id
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
+        
+        
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
