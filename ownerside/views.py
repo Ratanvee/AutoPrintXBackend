@@ -77,12 +77,49 @@ def format_order(order):
         "transaction_id": order.Transaction_id,
         "payment_status": order.PaymentStatus,
         "payment_method": order.PaymentMethod,
+        "pageCounts": order.FilePagesCount,
     }
 
 
 # ============================================
 # DASHBOARD VIEWS
 # ============================================
+
+# class OrdersOverview(APIView):
+#     """Get dashboard statistics overview"""
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         user = request.user
+#         cache_key = get_cache_key(user.id, 'orders_overview')
+        
+#         # Try to get from cache (cache for 30 seconds)
+#         cached_data = cache.get(cache_key)
+#         if cached_data:
+#             return Response(cached_data)
+        
+#         try:
+#             dashboard_stats = get_dashboard_stats(user.unique_url)
+#             dashboard_stats = serialize_mongo_data(dashboard_stats)
+            
+#             response_data = {
+#                 "OrderOverview": [{
+#                     "unique_url": user.unique_url,
+#                     "dashboard_stats": dashboard_stats
+#                 }]
+#             }
+            
+#             # Cache for 30 seconds
+#             cache.set(cache_key, response_data, 30)
+            
+#             return Response(response_data)
+            
+#         except Exception as e:
+#             return Response(
+#                 {"error": f"Failed to fetch dashboard overview: {str(e)}"},
+#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
+#             )
+
 
 class OrdersOverview(APIView):
     """Get dashboard statistics overview"""
@@ -92,7 +129,7 @@ class OrdersOverview(APIView):
         user = request.user
         cache_key = get_cache_key(user.id, 'orders_overview')
         
-        # Try to get from cache (cache for 30 seconds)
+        # Reduce cache time to 5 seconds instead of 30
         cached_data = cache.get(cache_key)
         if cached_data:
             return Response(cached_data)
@@ -108,8 +145,8 @@ class OrdersOverview(APIView):
                 }]
             }
             
-            # Cache for 30 seconds
-            cache.set(cache_key, response_data, 30)
+            # Cache for only 5 seconds instead of 30
+            cache.set(cache_key, response_data, 5)
             
             return Response(response_data)
             
@@ -118,7 +155,6 @@ class OrdersOverview(APIView):
                 {"error": f"Failed to fetch dashboard overview: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
 
 class DashboardView(APIView):
     """Get user dashboard data"""
@@ -422,11 +458,15 @@ class OrdersChartData(APIView):
         
         return labels, revenue_data, orders_data
 
+from django.core.cache import cache
+from django.utils import timezone
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import AllowAny
+def set_last_modified_timestamp(user):
+    """Update last modified timestamp for user to invalidate ETags"""
+    cache_key = f'last_modified_{user.id}'
+    timestamp = timezone.now().isoformat()
+    cache.set(cache_key, timestamp, None)  # No expiration
+    return timestamp
 
 class UpdatePrintStatusAPIView(APIView):
     """Update PrintStatus of a specific order to 'Complete' after printing"""
@@ -475,9 +515,11 @@ class UpdatePrintStatusAPIView(APIView):
             # Get current status before update
             order = UploadFiles.objects.get(OrderId=order_id)
             old_status = order.PrintStatus
+            order_owner = order.Owner  # Get the user who owns this order
             
             print(f"[ INFO ] Found order: {order_id}")
             print(f"  Current PrintStatus: {old_status}")
+            print(f"  Order Owner: {order_owner}")
             
             # Update PrintStatus to Complete
             updated_count = UploadFiles.objects.filter(OrderId=order_id).update(
@@ -485,6 +527,27 @@ class UpdatePrintStatusAPIView(APIView):
             )
             
             if updated_count > 0:
+                # *** CLEAR CACHE AFTER SUCCESSFUL UPDATE ***
+                try:
+                    # Clear recent orders cache for the order owner
+                    recent_orders_cache_key = get_cache_key(order_owner.id, 'recent_orders')
+                    cache.delete(recent_orders_cache_key)
+                    print(f"  ✓ Cleared recent_orders cache: {recent_orders_cache_key}")
+                    
+                    # Clear orders overview cache
+                    orders_overview_cache_key = get_cache_key(order_owner.id, 'orders_overview')
+                    cache.delete(orders_overview_cache_key)
+                    print(f"  ✓ Cleared orders_overview cache: {orders_overview_cache_key}")
+                    
+                    # Update last modified timestamp to invalidate ETag
+                    # This will force clients to fetch fresh data
+                    set_last_modified_timestamp(order_owner)
+                    print(f"  ✓ Updated last_modified timestamp for user: {order_owner.id}")
+                    
+                except Exception as cache_error:
+                    print(f"[WARN] Failed to clear cache: {cache_error}")
+                    # Don't fail the request if cache clearing fails
+                
                 print(f"[ SUCCESS ] ✓ Updated PrintStatus")
                 print(f"  Order: {order_id}")
                 print(f"  Status: {old_status} → Complete")
@@ -538,8 +601,6 @@ class UpdatePrintStatusAPIView(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        
-        
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

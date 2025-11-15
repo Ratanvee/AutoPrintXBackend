@@ -94,16 +94,123 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['username']
 
 
+# class UploadFilesSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = UploadFiles
+#         # fields = '__all__'
+#         fields = ['Unique_url', 'OrderId', 'FileUpload', 'FileUploadID', 'PaperSize', 'PaperType', 'PrintColor', 'PrintSide', 'Binding', 'NumberOfCopies', 'PaymentAmount', 'PaymentStatus', 'CustomerName', 'Owner', 'Updated_at', 'Transaction_id', 'NoOfPages', 'PrintStatus', 'Created_at']
+#         # read_only_fields = ['Updated_at', 'Owner']
+
+#     def create(self, validated_data):
+#         return UploadFiles.objects.create(**validated_data)
+
+from rest_framework import serializers
+from smartdocx.models import UploadFiles
+import json
+
 class UploadFilesSerializer(serializers.ModelSerializer):
+    file_urls = serializers.SerializerMethodField()
+    file_ids = serializers.SerializerMethodField()
+    file_count = serializers.SerializerMethodField()
+    
     class Meta:
         model = UploadFiles
-        # fields = '__all__'
-        fields = ['Unique_url', 'OrderId', 'FileUpload', 'FileUploadID', 'PaperSize', 'PaperType', 'PrintColor', 'PrintSide', 'Binding', 'NumberOfCopies', 'PaymentAmount', 'PaymentStatus', 'CustomerName', 'Owner', 'Updated_at', 'Transaction_id', 'NoOfPages', 'PrintStatus', 'Created_at']
-        # read_only_fields = ['Updated_at', 'Owner']
-
-    def create(self, validated_data):
-        return UploadFiles.objects.create(**validated_data)
-
+        fields = [
+            'id',
+            'Owner',
+            'Unique_url',
+            'FileUpload',
+            'FileUploadID',
+            'file_urls',
+            'file_ids',
+            'file_count',
+            'PaperSize',
+            'PaperType',
+            'PrintColor',
+            'PrintSide',
+            'Binding',
+            'NumberOfCopies',
+            'PaymentAmount',
+            'NoOfPages',
+            'PaymentStatus',  # BooleanField
+            'Transaction_id',
+            'CustomerName',
+            'OrderId',
+            'PaymentMethod',
+            'PrintStatus',
+            'Created_at',
+            'Updated_at',
+            'FilePagesCount'
+        ]
+        read_only_fields = ['id', 'Created_at', 'Updated_at']
+    
+    def get_file_urls(self, obj):
+        """Return parsed file URLs dictionary"""
+        return obj.get_file_urls()
+    
+    def get_file_ids(self, obj):
+        """Return parsed file IDs dictionary"""
+        return obj.get_file_ids()
+    
+    def get_file_count(self, obj):
+        """Return number of files"""
+        return obj.get_file_count()
+    
+    def validate_FileUpload(self, value):
+        """Validate that FileUpload is valid JSON or string"""
+        if not value:
+            return '{}'
+        
+        if isinstance(value, str):
+            try:
+                # Try to parse as JSON
+                parsed = json.loads(value)
+                # Ensure it's stored as JSON string
+                return json.dumps(parsed)
+            except json.JSONDecodeError:
+                # If not JSON, check if it's a URL (backward compatibility)
+                if value.startswith(('http://', 'https://')):
+                    # Wrap single URL in dict format
+                    return json.dumps({"file": value})
+                raise serializers.ValidationError("Invalid file URL format")
+        
+        # If it's already a dict, convert to JSON
+        if isinstance(value, dict):
+            return json.dumps(value)
+        
+        return value
+    
+    def validate_FileUploadID(self, value):
+        """Validate that FileUploadID is valid JSON or string"""
+        if not value:
+            return '{}'
+        
+        if isinstance(value, str):
+            try:
+                # Try to parse as JSON
+                parsed = json.loads(value)
+                return json.dumps(parsed)
+            except json.JSONDecodeError:
+                # If not JSON, wrap in dict (backward compatibility)
+                if value:
+                    return json.dumps({"file": value})
+                return '{}'
+        
+        # If it's already a dict, convert to JSON
+        if isinstance(value, dict):
+            return json.dumps(value)
+        
+        return value
+    
+    def validate_PaymentStatus(self, value):
+        """Ensure PaymentStatus is boolean"""
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.lower() in ['true', '1', 'yes']
+        if isinstance(value, int):
+            return bool(value)
+        return False
 
 class ChangePasswordSerializer(serializers.Serializer):
     """
