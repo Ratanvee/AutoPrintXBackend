@@ -105,7 +105,8 @@ def create_web_login_token(request):
 
     WebLoginToken.objects.create(user=user, token=token)
 
-    base = env("websiteURL")
+    # base = env("websiteURL")
+    base = "https://autoprintx.vercel.app/"
     url = f"{base}autologin?token={token}"
 
 
