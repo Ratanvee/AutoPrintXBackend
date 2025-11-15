@@ -56,19 +56,31 @@ def get_cache_key(user_id, endpoint):
     return f"owner_{user_id}_{endpoint}"
 
 
-def get_last_modified_timestamp(user):
-    """Get the last modified timestamp for user's orders"""
-    try:
-        last_order = UploadFiles.objects.filter(
-            Owner=user
-        ).order_by('-Updated_at').first()
+# def get_last_modified_timestamp(user):
+#     """Get the last modified timestamp for user's orders"""
+#     try:
+#         last_order = UploadFiles.objects.filter(
+#             Owner=user
+#         ).order_by('-Updated_at').first()
         
-        if last_order and last_order.Updated_at:
-            return last_order.Updated_at.isoformat()
-    except Exception as e:
-        print(f"Error getting last modified: {e}")
+#         if last_order and last_order.Updated_at:
+#             return last_order.Updated_at.isoformat()
+#     except Exception as e:
+#         print(f"Error getting last modified: {e}")
     
-    return timezone.now().isoformat()
+#     return timezone.now().isoformat()
+
+def get_last_modified_timestamp(user):
+    """Get last modified timestamp for user"""
+    cache_key = f'last_modified_{user.id}'
+    timestamp = cache.get(cache_key)
+    
+    if not timestamp:
+        # Initialize with current time if not exists
+        timestamp = timezone.now().isoformat()
+        cache.set(cache_key, timestamp, None)
+    
+    return timestamp
 
 
 def invalidate_user_cache(user_id):
