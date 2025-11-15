@@ -93,6 +93,66 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             )
 
 
+import uuid
+from .models import WebLoginToken
+from rest_framework_simplejwt.tokens import RefreshToken
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_web_login_token(request):
+    user = request.user
+
+    token = uuid.uuid4().hex
+
+    WebLoginToken.objects.create(user=user, token=token)
+
+    base = env("websiteURL")
+    url = f"{base}autologin?token={token}"
+
+
+    return Response({"url": url})
+
+
+# @api_view(['GET'])
+# @permission_classes([])
+from rest_framework.permissions import AllowAny
+from rest_framework.views import APIView
+
+class UseWebLoginToken(APIView):
+    permission_classes = [AllowAny]   # 🔥 THIS FIXES THE ISSUE
+
+    def get(self, request, *args, **kwargs):
+        token = request.GET.get("token")
+        if not token:
+            return Response({"success": False, "error": "Token missing"}, status=400)
+
+        try:
+            # Load all tokens into Python (djongo-safe)
+            all_tokens = list(WebLoginToken.objects.all())
+
+            # Manually filter (avoids NOT used SQL bug)
+            token_obj = next((t for t in all_tokens if t.token == token and t.used is False), None)
+
+            if token_obj is None:
+                return Response({"success": False, "error": "Invalid or used token"}, status=400)
+
+            # mark token used
+            token_obj.used = True
+            token_obj.save()
+
+            # Create JWT tokens for user
+            refresh = RefreshToken.for_user(token_obj.user)
+
+            return Response({
+                "success": True,
+                "access": str(refresh.access_token),
+                "refresh": str(refresh)
+            })
+
+        except Exception as e:
+            return Response({"success": False, "error": str(e)}, status=500)
+
+
+
 class CustomRefreshTokenView(TokenRefreshView):
     def post(self, request, *args, **kwargs):
         try:

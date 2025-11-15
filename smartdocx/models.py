@@ -121,3 +121,9 @@ class OTPVerification(models.Model):
         except Exception as e:
             print(f"Error deleting expired OTPs: {e}")
             return 0
+        
+class WebLoginToken(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    token = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    used = models.BooleanField(default=False)   

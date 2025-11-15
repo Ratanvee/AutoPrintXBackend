@@ -901,3 +901,196 @@ def DashboardSettings(request):
         {"error": "Method not allowed"}, 
         status=status.HTTP_405_METHOD_NOT_ALLOWED
     )
+
+
+
+
+# ============================================
+# consumers.py - Simplified (auth handled by middleware)
+# ============================================
+
+import json
+import logging
+from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.db import database_sync_to_async
+from django.utils import timezone
+
+logger = logging.getLogger(__name__)
+
+
+class BaseAuthenticatedConsumer(AsyncWebsocketConsumer):
+    """Base consumer - authentication handled by middleware"""
+    
+    async def connect(self):
+        self.user = self.scope.get("user")
+        
+        logger.info(f"Connection attempt - User: {self.user}, Is authenticated: {self.user.is_authenticated if hasattr(self.user, 'is_authenticated') else False}")
+        
+        # Check if user is authenticated
+        if not self.user or not hasattr(self.user, 'is_authenticated') or not self.user.is_authenticated:
+            await self.accept()
+            await self.send(text_data=json.dumps({
+                'type': 'auth_error',
+                'error': 'Authentication required. Please login first.',
+                'details': 'No valid JWT token found in cookies'
+            }))
+            await self.close(code=4003)
+            return
+        
+        # Accept connection
+        await self.accept()
+        
+        # Send success message
+        await self.send(text_data=json.dumps({
+            'type': 'connection_success',
+            'message': f'Authenticated as {self.user.username}',
+            'user': {
+                'id': self.user.id,
+                'username': self.user.username,
+                'email': self.user.email
+            }
+        }))
+        
+        logger.info(f"WebSocket connection accepted for user: {self.user.username}")
+
+
+class OrdersOverviewConsumer(BaseAuthenticatedConsumer):
+    """WebSocket for dashboard statistics overview"""
+    
+    async def connect(self):
+        await super().connect()
+        
+        # Only send data if authenticated
+        if self.user and self.user.is_authenticated:
+            try:
+                await self.send_overview_data()
+            except Exception as e:
+                logger.error(f"Error sending overview: {str(e)}", exc_info=True)
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'error': str(e)
+                }))
+    
+    async def receive(self, text_data):
+        try:
+            data = json.loads(text_data)
+            action = data.get('action')
+            
+            if action == 'refresh':
+                await self.send_overview_data()
+            else:
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'error': f'Unknown action: {action}'
+                }))
+        except Exception as e:
+            logger.error(f"Error in receive: {str(e)}", exc_info=True)
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'error': str(e)
+            }))
+    
+    async def send_overview_data(self):
+        try:
+            logger.info(f"Fetching overview data for user: {self.user.username}")
+            
+            # Check if user has unique_url
+            if not hasattr(self.user, 'unique_url'):
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'error': 'User does not have unique_url attribute'
+                }))
+                return
+            
+            # Get dashboard stats (implement your logic here)
+            dashboard_stats = await self.get_dashboard_stats()
+            
+            # Send response
+            await self.send(text_data=json.dumps({
+                "type": "orders_overview",
+                "OrderOverview": [{
+                    "unique_url": self.user.unique_url,
+                    "dashboard_stats": dashboard_stats
+                }]
+            }))
+            
+        except Exception as e:
+            logger.error(f"Error in send_overview_data: {str(e)}", exc_info=True)
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'error': f'Failed to fetch dashboard overview: {str(e)}'
+            }))
+    
+    @database_sync_to_async
+    def get_dashboard_stats(self):
+        """Fetch dashboard statistics"""
+        try:
+            from ownerside.utils import get_dashboard_stats, serialize_mongo_data
+            dashboard_stats = get_dashboard_stats(self.user.unique_url)
+            return serialize_mongo_data(dashboard_stats)
+        except ImportError:
+            # Return mock data if utils don't exist
+            return {
+                "total_orders": 42,
+                "total_revenue": 12345.67,
+                "pending_orders": 5
+            }
+        except Exception as e:
+            logger.error(f"Error fetching stats: {str(e)}")
+            return {"error": str(e)}
+
+
+class RecentOrdersConsumer(BaseAuthenticatedConsumer):
+    """WebSocket for recent orders"""
+    
+    async def connect(self):
+        await super().connect()
+        
+        if self.user and self.user.is_authenticated:
+            try:
+                await self.send_orders_data()
+            except Exception as e:
+                logger.error(f"Error: {str(e)}", exc_info=True)
+    
+    async def receive(self, text_data):
+        try:
+            data = json.loads(text_data)
+            action = data.get('action')
+            
+            if action == 'refresh':
+                await self.send_orders_data()
+        except Exception as e:
+            await self.send(text_data=json.dumps({'type': 'error', 'error': str(e)}))
+    
+    async def send_orders_data(self):
+        try:
+            orders = await self.get_recent_orders()
+            await self.send(text_data=json.dumps({
+                "type": "recent_orders",
+                "orders": orders
+            }))
+        except Exception as e:
+            await self.send(text_data=json.dumps({'type': 'error', 'error': str(e)}))
+    
+    @database_sync_to_async
+    def get_recent_orders(self):
+        try:
+            from smartdocx.models import UploadFiles
+            
+            # Get orders - avoid .first() for Djongo
+            all_orders = list(
+                UploadFiles.objects.filter(Owner=self.user)[:100]
+            )
+            all_orders.sort(key=lambda x: x.Created_at if hasattr(x, 'Created_at') and x.Created_at else timezone.now(), reverse=True)
+            
+            # Format orders
+            return [{
+                'order_id': order.OrderId if hasattr(order, 'OrderId') else 'N/A',
+                'customer_name': order.CustomerName if hasattr(order, 'CustomerName') else 'Unknown',
+                'created_at': order.Created_at.isoformat() if hasattr(order, 'Created_at') and order.Created_at else None,
+            } for order in all_orders[:20]]  # Limit to 20 orders
+            
+        except Exception as e:
+            logger.error(f"Error getting orders: {str(e)}")
+            return []
+

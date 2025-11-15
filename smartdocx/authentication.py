@@ -52,3 +52,80 @@ class CookiesJWTAuthentication(JWTAuthentication):
 
     def enforce_csrf(self, request):
         return
+    
+
+
+
+# ============================================
+# SOLUTION: Cookie-based JWT for WebSocket
+# ============================================
+
+# middleware.py - Create this file in your app
+from channels.db import database_sync_to_async
+from channels.middleware import BaseMiddleware
+from django.contrib.auth.models import AnonymousUser
+from rest_framework_simplejwt.tokens import AccessToken
+from django.contrib.auth import get_user_model
+import logging
+
+logger = logging.getLogger(__name__)
+
+User = get_user_model()
+
+
+class JWTAuthMiddleware(BaseMiddleware):
+    """
+    Custom middleware to authenticate WebSocket connections using JWT from cookies
+    """
+    
+    async def __call__(self, scope, receive, send):
+        # Get cookies from headers
+        headers = dict(scope['headers'])
+        cookie_header = headers.get(b'cookie', b'').decode()
+        
+        logger.info(f"WebSocket connection attempt with cookies: {cookie_header[:100] if cookie_header else 'None'}")
+        
+        # Parse cookies
+        cookies = {}
+        if cookie_header:
+            for cookie in cookie_header.split('; '):
+                if '=' in cookie:
+                    key, value = cookie.split('=', 1)
+                    cookies[key] = value
+        
+        # Get access_token from cookies
+        access_token = cookies.get('access_token')
+        
+        if access_token:
+            logger.info(f"Found access_token in cookies: {access_token[:20]}...")
+            # Authenticate user
+            scope['user'] = await self.get_user_from_token(access_token)
+            logger.info(f"Authenticated user: {scope['user']}")
+        else:
+            logger.warning("No access_token found in cookies")
+            scope['user'] = AnonymousUser()
+        
+        return await super().__call__(scope, receive, send)
+    
+    @database_sync_to_async
+    def get_user_from_token(self, token):
+        """Validate JWT token and return user"""
+        try:
+            # Decode and validate token
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']
+            
+            # Get user from database
+            user = User.objects.get(id=user_id)
+            
+            if user.is_active:
+                logger.info(f"Token validated for user: {user.username}")
+                return user
+            else:
+                logger.warning(f"User {user.username} is inactive")
+                return AnonymousUser()
+                
+        except Exception as e:
+            logger.error(f"Token validation error: {str(e)}")
+            return AnonymousUser()
+

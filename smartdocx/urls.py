@@ -20,7 +20,7 @@ from . import views
 # router.register(r'uploads', UploadFilesViewSet, basename='uploads')
 from ownerside.views import DashboardView, OrdersOverview, RecentActivityView, RecentOrdersView, OrdersChartData, UpdatePrintStatusAPIView, get_owner_orders, DashboardSettings
 from customerside.views import upload_file_view
-from .views import SendOTPView, VerifyOTPView, ResetPasswordView
+from .views import SendOTPView, VerifyOTPView, ResetPasswordView,create_web_login_token, UseWebLoginToken
 urlpatterns = [
     # path('', home, name='home'),
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
@@ -46,6 +46,9 @@ urlpatterns = [
     path('send-otp/', SendOTPView.as_view(), name='send-otp'),
     path('verify-otp/', VerifyOTPView.as_view(), name='verify-otp'),
     path('reset-password/', ResetPasswordView.as_view(), name='reset-password'),
+    path('create-web-login-token/', create_web_login_token),
+    # path('use-web-login-token/', use_web_login_token),
+    path('use-web-login-token/', UseWebLoginToken.as_view()),
 
 
 

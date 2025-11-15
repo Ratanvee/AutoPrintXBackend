@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework_simplejwt',
     'rest_framework',
+    'channels',
     'corsheaders', 
     'smartdocx',
     'ownerside',
@@ -45,6 +46,17 @@ INSTALLED_APPS = [
     'django_extensions',
     'imagekit',
 ]
+
+
+# settings.py
+# Add this to your settings.py if it's missing or incorrect
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    },
+}
+
 
 
 ASGI_APPLICATION = "app.asgi.application"
