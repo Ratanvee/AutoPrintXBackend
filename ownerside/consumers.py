@@ -213,8 +213,8 @@ class RecentOrdersConsumer(BaseAuthenticatedConsumer):
     
     @database_sync_to_async
     def get_recent_orders(self):
-        from your_app.models import UploadFiles
-        from your_app.utils import format_order
+        from smartdocx.models import UploadFiles
+        from ownerside.utils import format_order
         
         all_orders = UploadFiles.objects.filter(
             Owner=self.user
@@ -281,8 +281,8 @@ class OrdersChartDataConsumer(BaseAuthenticatedConsumer):
     
     @database_sync_to_async
     def generate_chart_data(self, filter_type):
-        from your_app.models import UploadFiles
-        from your_app.utils import convert_decimal128
+        from smartdocx.models import UploadFiles
+        from ownerside.utils import convert_decimal128
         
         now_time = timezone.now()
         labels = []
@@ -321,7 +321,7 @@ class OrdersChartDataConsumer(BaseAuthenticatedConsumer):
         }
     
     def _get_daily_data(self, qs, now_time):
-        from your_app.utils import convert_decimal128
+        from ownerside.utils import convert_decimal128
         
         labels = []
         revenue_data = []
@@ -352,7 +352,7 @@ class OrdersChartDataConsumer(BaseAuthenticatedConsumer):
         return labels, revenue_data, orders_data
     
     def _get_weekly_data(self, qs, now_time):
-        from your_app.utils import convert_decimal128
+        from ownerside.utils import convert_decimal128
         
         labels = []
         revenue_data = []
@@ -384,7 +384,7 @@ class OrdersChartDataConsumer(BaseAuthenticatedConsumer):
         return labels, revenue_data, orders_data
     
     def _get_monthly_data(self, qs, now_time):
-        from your_app.utils import convert_decimal128
+        from ownerside.utils import convert_decimal128
         
         labels = []
         revenue_data = []
@@ -418,7 +418,7 @@ class OrdersChartDataConsumer(BaseAuthenticatedConsumer):
         return labels, revenue_data, orders_data
     
     def _get_overall_data(self, qs):
-        from your_app.utils import convert_decimal128
+        from ownerside.utils import convert_decimal128
         
         labels = []
         revenue_data = []
@@ -512,8 +512,8 @@ class RecentActivityConsumer(BaseAuthenticatedConsumer):
     
     @database_sync_to_async
     def get_activities(self, limit):
-        from your_app.models import UploadFiles
-        from your_app.utils import get_time_ago, convert_decimal128
+        from smartdocx.models import UploadFiles
+        from ownerside.utils import get_time_ago, convert_decimal128
         from django.utils.timezone import now
         
         activities = []

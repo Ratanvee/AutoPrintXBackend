@@ -85,42 +85,6 @@ def format_order(order):
 # DASHBOARD VIEWS
 # ============================================
 
-# class OrdersOverview(APIView):
-#     """Get dashboard statistics overview"""
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request):
-#         user = request.user
-#         cache_key = get_cache_key(user.id, 'orders_overview')
-        
-#         # Try to get from cache (cache for 30 seconds)
-#         cached_data = cache.get(cache_key)
-#         if cached_data:
-#             return Response(cached_data)
-        
-#         try:
-#             dashboard_stats = get_dashboard_stats(user.unique_url)
-#             dashboard_stats = serialize_mongo_data(dashboard_stats)
-            
-#             response_data = {
-#                 "OrderOverview": [{
-#                     "unique_url": user.unique_url,
-#                     "dashboard_stats": dashboard_stats
-#                 }]
-#             }
-            
-#             # Cache for 30 seconds
-#             cache.set(cache_key, response_data, 30)
-            
-#             return Response(response_data)
-            
-#         except Exception as e:
-#             return Response(
-#                 {"error": f"Failed to fetch dashboard overview: {str(e)}"},
-#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
-#             )
-
-
 class OrdersOverview(APIView):
     """Get dashboard statistics overview"""
     permission_classes = [IsAuthenticated]
@@ -169,6 +133,7 @@ class DashboardView(APIView):
             "unique_url": user.unique_url,
             'is_modified': user.info_modified,
             'owner_name': user.owner_fullname,
+            'shop_image': user.owner_shop_image,
         }
         
         return Response({
@@ -688,17 +653,22 @@ class RecentActivityView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED
             )
         
-        limit = min(int(request.GET.get('limit', 4)), 20)  # Max 20 activities
+        # ✅ If limit not provided or is 0, fetch ALL activities (no limit)
+        limit_param = request.GET.get('limit', None)
+        limit = None if limit_param is None or limit_param == '0' else min(int(limit_param), 100)
         
         # Try cache first (cache for 10 seconds)
-        cache_key = get_cache_key(user.id, f'activity_{limit}')
+        cache_key = get_cache_key(user.id, f'activity_{limit or "all"}')
         cached_data = cache.get(cache_key)
         if cached_data:
             return Response(cached_data)
         
         try:
             activities = self._get_activities(user, limit)
-            response_data = {"activities": activities}
+            response_data = {
+                "activities": activities,
+                "count": len(activities),
+            }
 
             # Cache for 30 seconds
             cache.set(cache_key, response_data, 30)
@@ -718,11 +688,19 @@ class RecentActivityView(APIView):
         activity_id = 1
         recent_time = now() - timedelta(hours=24)
         
+        # ✅ Fetch more items initially (or all) to ensure we have enough after filtering
+        query_limit = 50 if limit else None  # If no limit, fetch all
+        
         # 1. New Orders
-        new_orders = UploadFiles.objects.filter(
+        new_orders_query = UploadFiles.objects.filter(
             Owner=user,
             Created_at__gte=recent_time
-        ).order_by('-Created_at')[:5]
+        ).order_by('-Created_at')
+        
+        if query_limit:
+            new_orders = new_orders_query[:query_limit]
+        else:
+            new_orders = new_orders_query
         
         for order in new_orders:
             activities.append({
@@ -736,11 +714,16 @@ class RecentActivityView(APIView):
             activity_id += 1
         
         # 2. Payment Activities
-        paid_orders = UploadFiles.objects.filter(
+        paid_orders_query = UploadFiles.objects.filter(
             Owner=user,
             PaymentStatus=True,
             Updated_at__gte=recent_time
-        ).order_by('-Updated_at')[:5]
+        ).order_by('-Updated_at')
+        
+        if query_limit:
+            paid_orders = paid_orders_query[:query_limit]
+        else:
+            paid_orders = paid_orders_query
         
         for order in paid_orders:
             activities.append({
@@ -755,11 +738,16 @@ class RecentActivityView(APIView):
             activity_id += 1
         
         # 3. Completed Orders
-        completed_orders = UploadFiles.objects.filter(
+        completed_orders_query = UploadFiles.objects.filter(
             Owner=user,
             PrintStatus="Complete",
             Updated_at__gte=recent_time
-        ).order_by('-Updated_at')[:5]
+        ).order_by('-Updated_at')
+        
+        if query_limit:
+            completed_orders = completed_orders_query[:query_limit]
+        else:
+            completed_orders = completed_orders_query
         
         for order in completed_orders:
             activities.append({
@@ -774,12 +762,12 @@ class RecentActivityView(APIView):
         
         # 4. New Customers (only unique new customers)
         try:
-            recent_customer_names = UploadFiles.objects.filter(
+            recent_customer_names_query = UploadFiles.objects.filter(
                 Owner=user,
                 Created_at__gte=recent_time
             ).values_list('CustomerName', flat=True).distinct()
             
-            for customer_name in recent_customer_names:
+            for customer_name in recent_customer_names_query:
                 if not customer_name:
                     continue
                 
@@ -810,9 +798,14 @@ class RecentActivityView(APIView):
         except Exception as e:
             print(f"Error fetching customers: {str(e)}")
         
-        # Sort by timestamp and return limited results
+        # Sort by timestamp (most recent first)
         activities.sort(key=lambda x: x['timestamp'], reverse=True)
-        return activities[:limit]
+        
+        # ✅ Apply limit only if specified
+        if limit:
+            return activities[:limit]
+        else:
+            return activities  # Return all activities
 
 
 # ============================================

@@ -46,35 +46,6 @@ class CustomUser(AbstractUser):
         return self.username
 
 
-# class UploadFiles(models.Model):
-#     Unique_url = models.CharField(max_length=255, blank=True, null=True)
-#     OrderId = models.CharField(max_length=100, blank=True, null=True)
-#     FileUpload = models.TextField(default='', blank=True, null=True)  
-#     FileUploadID = models.CharField(max_length=255, default='', blank=True, null=True) 
-#     PaperSize = models.CharField(max_length=20, default='A4')
-#     PaperType = models.CharField(max_length=20, default='Portrait')
-#     PrintColor = models.CharField(max_length=20, default='Color')
-#     PrintSide = models.CharField(max_length=20, default='One-sided')
-#     Binding = models.CharField(max_length=20, default='None')
-#     NumberOfCopies = models.IntegerField(default=1)
-#     PaymentStatus = models.BooleanField(default=False)
-#     PaymentAmount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-#     PaymentMethod = models.CharField(max_length=50, default='Cash')
-#     Owner = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='uploads')
-#     Updated_at = models.DateTimeField(auto_now=True)
-#     Transaction_id = models.CharField(max_length=100, blank=True, null=True)
-#     NoOfPages = models.IntegerField(default=0)
-#     CustomerName = models.CharField(max_length=100, blank=True, null=True)
-#     PrintStatus = models.CharField(max_length=50, default='Pending')  # e.g., Pending, In Progress, Completed
-#     Created_at = models.DateTimeField(default=timezone.now)  # Tracks order creation
-
-#     def __str__(self):
-#         return f"Order {self.id} - {self.Owner}"
-
-#     class Meta:
-#         verbose_name_plural = "Uploaded Files"
-
-
 # Step 1: Keep your model as BooleanField (Djongo compatible)
 # models.py
 from django.db import models
