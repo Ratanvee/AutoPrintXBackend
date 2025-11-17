@@ -97,7 +97,7 @@ import uuid
 from .models import WebLoginToken
 from rest_framework_simplejwt.tokens import RefreshToken
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def create_web_login_token(request):
     user = request.user
 
