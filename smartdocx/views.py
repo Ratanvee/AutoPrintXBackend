@@ -101,6 +101,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 def create_web_login_token(request):
     user = request.user
 
+    # Delete all existing WebLoginToken objects associated with this user
+    WebLoginToken.objects.filter(user=user).delete()
+
     token = uuid.uuid4().hex
 
     WebLoginToken.objects.create(user=user, token=token)
