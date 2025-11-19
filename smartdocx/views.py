@@ -92,17 +92,20 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+from rest_framework.permissions import AllowAny
+from rest_framework.views import APIView
 
 import uuid
 from .models import WebLoginToken
 from rest_framework_simplejwt.tokens import RefreshToken
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([])
 def create_web_login_token(request):
     user = request.user
+    print("ths is user : ",user)
 
     # Delete all existing WebLoginToken objects associated with this user
-    WebLoginToken.objects.filter(user=user).delete()
+    # WebLoginToken.objects.filter(user=user).delete()
 
     token = uuid.uuid4().hex
 
@@ -110,19 +113,15 @@ def create_web_login_token(request):
 
     # base = env("websiteURL")
     base = "https://autoprintx.vercel.app/"
+    # base = "http://localhost:5173/"
     url = f"{base}autologin?token={token}"
 
 
     return Response({"url": url})
 
 
-# @api_view(['GET'])
-# @permission_classes([])
-from rest_framework.permissions import AllowAny
-from rest_framework.views import APIView
-
 class UseWebLoginToken(APIView):
-    permission_classes = [AllowAny]   # 🔥 THIS FIXES THE ISSUE
+    permission_classes = [AllowAny]
 
     def get(self, request, *args, **kwargs):
         token = request.GET.get("token")
@@ -139,23 +138,28 @@ class UseWebLoginToken(APIView):
             if token_obj is None:
                 return Response({"success": False, "error": "Invalid or used token"}, status=400)
 
-            # mark token used
+            # Mark token used
             token_obj.used = True
             token_obj.save()
 
             # Create JWT tokens for user
             refresh = RefreshToken.for_user(token_obj.user)
+            access_token = str(refresh.access_token)
+            refresh_token = str(refresh)
 
-            return Response({
+            # Create response
+            response = Response({
                 "success": True,
-                "access": str(refresh.access_token),
-                "refresh": str(refresh)
+                "message": "Login successful"
             })
+            
+            # Set cookies using your helper function
+            return set_auth_cookies(response, access_token, refresh_token)
 
         except Exception as e:
+            print(f"UseWebLoginToken error: {e}")
             return Response({"success": False, "error": str(e)}, status=500)
-
-
+        
 
 class CustomRefreshTokenView(TokenRefreshView):
     def post(self, request, *args, **kwargs):

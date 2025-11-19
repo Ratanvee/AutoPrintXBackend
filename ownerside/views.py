@@ -820,7 +820,7 @@ def update_user_settings(user, section, data, uploaded_file_url=None):
             user.email = data.get('email', user.email)
             user.owner_phone_number = data.get('phone', user.owner_phone_number)
             user.owner_shop_address = data.get('address', user.owner_shop_address)
-            # user.info_modified = True
+            user.info_modified = True
             user.save()
             return True
         
